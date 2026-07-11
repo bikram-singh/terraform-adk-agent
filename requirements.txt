@@ -1,0 +1,6 @@
+google-adk
+google-cloud-aiplatform
+python-dotenv
+pydantic
+pydantic-settings
+pytest
