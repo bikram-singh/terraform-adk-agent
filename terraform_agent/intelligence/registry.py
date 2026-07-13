@@ -1,34 +1,21 @@
-"""Generator registry for supported Terraform services."""
+"""Compatibility layer over the multi-service generator registry."""
 
-from __future__ import annotations
-
-from collections.abc import Callable
-from typing import Any
-
-from terraform_agent.generators.gcs_generator import generate_gcs_files
+from terraform_agent.generators import generator_registry
 
 
-Generator = Callable[..., Any]
+def get_generator(service: str):
+    """Return a registered service generator plugin."""
 
-_GENERATORS: dict[str, Generator] = {
-    "gcs": generate_gcs_files,
-}
-
-
-def get_generator(service: str) -> Generator:
-    """Return the registered generator for a service."""
-
-    normalized = service.strip().lower().replace("_", "-")
-    try:
-        return _GENERATORS[normalized]
-    except KeyError as exc:
-        raise ValueError(
-            f"No generator registered for service '{service}'. "
-            f"Registered services: {sorted(_GENERATORS)}"
-        ) from exc
+    return generator_registry.get(service)
 
 
 def list_registered_generators() -> tuple[str, ...]:
     """Return registered service names."""
 
-    return tuple(sorted(_GENERATORS))
+    return generator_registry.list_services()
+
+
+def list_generator_metadata() -> tuple[dict[str, object], ...]:
+    """Return metadata for all registered generators."""
+
+    return generator_registry.metadata()

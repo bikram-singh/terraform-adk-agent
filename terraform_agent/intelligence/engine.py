@@ -1,11 +1,12 @@
-"""Orchestration pipeline for Terraform intelligence."""
+"""Service-neutral orchestration pipeline."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from terraform_agent.intelligence.analyzer import analyze_gcs_request
-from terraform_agent.intelligence.planner import plan_gcs_project
+from terraform_agent.generators.base import GeneratorContext
+from terraform_agent.generators.base.validation import validate_workspace_name
+from terraform_agent.intelligence.models import ResourcePlan
 from terraform_agent.intelligence.registry import get_generator
 from terraform_agent.intelligence.reporting import build_validation_report
 from terraform_agent.tools.file_tools import write_generated_file
@@ -13,43 +14,45 @@ from terraform_agent.tools.terraform_tools import terraform_full_validation
 from terraform_agent.tools.workspace_tools import create_workspace
 
 
-def generate_intelligent_gcs_project(
+def generate_service_project(
+    service: str,
     workspace_name: str,
-    region: str = "asia-south1",
-    environment: str = "dev",
-    owner: str = "platform-team",
-    application: str = "terraform-adk-agent",
-    noncurrent_version_retention_days: int = 30,
+    values: dict[str, Any],
 ) -> dict[str, Any]:
-    """
-    Analyze, plan, generate, and locally validate a secure GCS project.
-
-    No plan, apply, destroy, import, or state modification is performed.
-    """
+    """Generate and validate a project through a registered plugin."""
 
     try:
-        request = analyze_gcs_request(
-            workspace_name=workspace_name,
-            region=region,
-            environment=environment,
-            owner=owner,
-            application=application,
-            noncurrent_version_retention_days=(
-                noncurrent_version_retention_days
-            ),
+        workspace = validate_workspace_name(workspace_name)
+        generator = get_generator(service)
+        generated = generator.generate(
+            GeneratorContext(
+                workspace_name=workspace,
+                values=values,
+            )
         )
-        plan = plan_gcs_project(request)
-    except ValueError as exc:
+    except (ValueError, TypeError) as exc:
         return {
             "status": "error",
-            "stage": "analysis",
+            "stage": "analysis_or_generation",
             "message": str(exc),
             "deployment_performed": False,
         }
 
+    plan = ResourcePlan(
+        service=generated.metadata.service_name,
+        workspace_name=workspace,
+        resources=generated.metadata.resources,
+        generated_files=(
+            *generated.metadata.generated_files,
+            "validation-report.md",
+        ),
+        security_controls=generated.metadata.supported_features,
+        request=dict(values),
+    )
+
     workspace_result = create_workspace(
         service=plan.service,
-        workspace_name=plan.workspace_name,
+        workspace_name=workspace,
     )
     if workspace_result["status"] != "success":
         return {
@@ -60,21 +63,10 @@ def generate_intelligent_gcs_project(
             "deployment_performed": False,
         }
 
-    generator = get_generator(plan.service)
-    generated = generator(
-        region=request.region,
-        environment=request.environment,
-        owner=request.owner,
-        application=request.application,
-        noncurrent_version_retention_days=(
-            request.noncurrent_version_retention_days
-        ),
-    )
-
-    file_results: list[dict[str, Any]] = []
+    file_results = []
     for filename, content in generated.files.items():
         result = write_generated_file(
-            workspace_name=plan.workspace_name,
+            workspace_name=workspace,
             filename=filename,
             content=content,
             overwrite=False,
@@ -90,10 +82,10 @@ def generate_intelligent_gcs_project(
                 "deployment_performed": False,
             }
 
-    validation = terraform_full_validation(plan.workspace_name)
+    validation = terraform_full_validation(workspace)
     report = build_validation_report(plan, validation)
     report_result = write_generated_file(
-        workspace_name=plan.workspace_name,
+        workspace_name=workspace,
         filename="validation-report.md",
         content=report,
         overwrite=False,
@@ -109,7 +101,32 @@ def generate_intelligent_gcs_project(
         "validation_report": report_result,
         "deployment_performed": False,
         "message": (
-            "Terraform Intelligence Engine completed analysis, planning, "
-            "generation, and local validation. No infrastructure was deployed."
+            "Multi-Service Generator Framework completed generation and "
+            "local validation. No infrastructure was deployed."
         ),
     }
+
+
+def generate_intelligent_gcs_project(
+    workspace_name: str,
+    region: str = "asia-south1",
+    environment: str = "dev",
+    owner: str = "platform-team",
+    application: str = "terraform-adk-agent",
+    noncurrent_version_retention_days: int = 30,
+) -> dict[str, Any]:
+    """Compatibility wrapper for the existing GCS ADK tool."""
+
+    return generate_service_project(
+        service="gcs",
+        workspace_name=workspace_name,
+        values={
+            "region": region,
+            "environment": environment,
+            "owner": owner,
+            "application": application,
+            "noncurrent_version_retention_days": (
+                noncurrent_version_retention_days
+            ),
+        },
+    )
