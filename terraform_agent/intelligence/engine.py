@@ -1,9 +1,7 @@
 """Service-neutral orchestration pipeline."""
 
 from __future__ import annotations
-
 from typing import Any
-
 from terraform_agent.generators.base import GeneratorContext
 from terraform_agent.generators.base.validation import validate_workspace_name
 from terraform_agent.intelligence.models import ResourcePlan
@@ -20,15 +18,11 @@ def generate_service_project(
     values: dict[str, Any],
 ) -> dict[str, Any]:
     """Generate and validate a project through a registered plugin."""
-
     try:
         workspace = validate_workspace_name(workspace_name)
         generator = get_generator(service)
         generated = generator.generate(
-            GeneratorContext(
-                workspace_name=workspace,
-                values=values,
-            )
+            GeneratorContext(workspace_name=workspace, values=values)
         )
     except (ValueError, TypeError) as exc:
         return {
@@ -49,10 +43,8 @@ def generate_service_project(
         security_controls=generated.metadata.supported_features,
         request=dict(values),
     )
-
     workspace_result = create_workspace(
-        service=plan.service,
-        workspace_name=workspace,
+        service=plan.service, workspace_name=workspace
     )
     if workspace_result["status"] != "success":
         return {
@@ -90,13 +82,13 @@ def generate_service_project(
         content=report,
         overwrite=False,
     )
-
     return {
         "status": validation["status"],
         "stage": "complete",
         "plan": plan.to_dict(),
         "workspace": workspace_result,
         "files": file_results,
+        "diagnostics": generated.diagnostics,
         "validation": validation,
         "validation_report": report_result,
         "deployment_performed": False,
@@ -115,18 +107,56 @@ def generate_intelligent_gcs_project(
     application: str = "terraform-adk-agent",
     noncurrent_version_retention_days: int = 30,
 ) -> dict[str, Any]:
-    """Compatibility wrapper for the existing GCS ADK tool."""
-
+    """Compatibility wrapper for the GCS ADK tool."""
     return generate_service_project(
-        service="gcs",
-        workspace_name=workspace_name,
-        values={
+        "gcs",
+        workspace_name,
+        {
             "region": region,
             "environment": environment,
             "owner": owner,
             "application": application,
-            "noncurrent_version_retention_days": (
-                noncurrent_version_retention_days
-            ),
+            "noncurrent_version_retention_days":
+                noncurrent_version_retention_days,
+        },
+    )
+
+
+def generate_intelligent_cloud_run_project(
+    workspace_name: str,
+    service_name: str,
+    container_image: str,
+    region: str = "asia-south1",
+    environment: str = "dev",
+    owner: str = "platform-team",
+    application: str = "terraform-adk-agent",
+    container_port: int = 8080,
+    cpu: str = "1",
+    memory: str = "512Mi",
+    min_instances: int = 0,
+    max_instances: int = 5,
+    ingress: str = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER",
+    allow_unauthenticated: bool = False,
+    deletion_protection: bool = True,
+) -> dict[str, Any]:
+    """Generate and locally validate a Cloud Run Terraform project."""
+    return generate_service_project(
+        "cloud-run",
+        workspace_name,
+        {
+            "service_name": service_name,
+            "container_image": container_image,
+            "region": region,
+            "environment": environment,
+            "owner": owner,
+            "application": application,
+            "container_port": container_port,
+            "cpu": cpu,
+            "memory": memory,
+            "min_instances": min_instances,
+            "max_instances": max_instances,
+            "ingress": ingress,
+            "allow_unauthenticated": allow_unauthenticated,
+            "deletion_protection": deletion_protection,
         },
     )

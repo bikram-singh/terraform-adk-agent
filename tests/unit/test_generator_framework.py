@@ -5,7 +5,7 @@ from terraform_agent.generators.base import GeneratorContext
 
 
 def test_gcs_plugin_is_registered() -> None:
-    assert generator_registry.list_services() == ("gcs",)
+    assert "gcs" in generator_registry.list_services()
 
 
 def test_registry_exposes_metadata() -> None:
