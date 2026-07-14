@@ -1,65 +1,69 @@
-"""Restricted file operations for generated Terraform workspaces."""
+"""Secure file operations for generated Terraform workspaces."""
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
-from terraform_agent.tools.workspace_tools import (
-    get_workspace_path,
-)
+from terraform_agent.tools.workspace_tools import get_workspace_path
 
 
-ALLOWED_TERRAFORM_FILES = {
-    "main.tf",
-    "variables.tf",
-    "outputs.tf",
-    "versions.tf",
-    "providers.tf",
-    "locals.tf",
-    "iam.tf",
-    "service-account.tf",
-    "terraform.tfvars.example",
-    "schema.json",
-    "README.md",
-    "validation-report.md",
-}
+_SAFE_FILENAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+_ALLOWED_SUFFIXES = {".tf", ".md", ".json"}
+_ALLOWED_EXACT_FILENAMES = {"terraform.tfvars.example"}
 
 
-def _validate_filename(filename: str) -> str:
-    """Validate that a requested filename is explicitly allowed."""
+def _validate_safe_filename(filename: str) -> str:
+    """Validate filesystem safety and approved generated-file types."""
 
-    cleaned = Path(filename.strip()).name
+    requested = filename.strip()
 
-    if cleaned != filename.strip():
+    if not requested:
+        raise ValueError("Filename must not be empty.")
+
+    path = Path(requested)
+
+    if path.is_absolute():
+        raise ValueError("Absolute file paths are not allowed.")
+
+    cleaned = path.name
+
+    if cleaned != requested:
         raise ValueError("Nested file paths are not allowed.")
 
-    if cleaned not in ALLOWED_TERRAFORM_FILES:
+    if cleaned.startswith("."):
+        raise ValueError("Hidden files are not allowed.")
+
+    if not _SAFE_FILENAME_PATTERN.fullmatch(cleaned):
         raise ValueError(
-            f"File '{cleaned}' is not allowed. "
-            f"Allowed files: {sorted(ALLOWED_TERRAFORM_FILES)}"
+            "Filename contains unsupported characters or is too long."
+        )
+
+    if (
+        cleaned not in _ALLOWED_EXACT_FILENAMES
+        and Path(cleaned).suffix.lower() not in _ALLOWED_SUFFIXES
+    ):
+        raise ValueError(
+            "Only flat Terraform, Markdown, JSON, or "
+            "terraform.tfvars.example files are allowed."
         )
 
     return cleaned
 
 
-def write_generated_file(
+def _write_file(
     workspace_name: str,
     filename: str,
     content: str,
-    overwrite: bool = False,
+    overwrite: bool,
+    allowed_filenames: set[str] | None,
 ) -> dict[str, Any]:
     """
-    Write an approved file inside a generated Terraform workspace.
+    Internal secure writer.
 
-    Args:
-        workspace_name: Existing workspace name.
-        filename: Approved Terraform or documentation filename.
-        content: Complete file content.
-        overwrite: Whether an existing file may be replaced.
-
-    Returns:
-        File-writing result.
+    This function is not exposed directly to ADK, so its internal policy
+    argument does not become part of an ADK/Pydantic tool schema.
     """
 
     workspace = get_workspace_path(workspace_name)
@@ -70,7 +74,26 @@ def write_generated_file(
             "message": f"Workspace does not exist: {workspace_name}",
         }
 
-    approved_filename = _validate_filename(filename)
+    try:
+        approved_filename = _validate_safe_filename(filename)
+    except ValueError as exc:
+        return {
+            "status": "error",
+            "message": str(exc),
+        }
+
+    if (
+        allowed_filenames is not None
+        and approved_filename not in allowed_filenames
+    ):
+        return {
+            "status": "error",
+            "message": (
+                f"File '{approved_filename}' is not declared by this "
+                f"generator. Declared files: {sorted(allowed_filenames)}"
+            ),
+        }
+
     target = (workspace / approved_filename).resolve()
 
     try:
@@ -90,7 +113,11 @@ def write_generated_file(
             ),
         }
 
-    target.write_text(content, encoding="utf-8", newline="\n")
+    target.write_text(
+        content,
+        encoding="utf-8",
+        newline="\n",
+    )
 
     return {
         "status": "success",
@@ -101,23 +128,62 @@ def write_generated_file(
     }
 
 
+def write_generated_file(
+    workspace_name: str,
+    filename: str,
+    content: str,
+    overwrite: bool = False,
+) -> dict[str, Any]:
+    """
+    Write a safe Terraform or documentation file.
+
+    This is the public ADK tool. Plugin-owned file authorization is enforced
+    internally by write_plugin_generated_file.
+    """
+
+    return _write_file(
+        workspace_name=workspace_name,
+        filename=filename,
+        content=content,
+        overwrite=overwrite,
+        allowed_filenames=None,
+    )
+
+
+def write_plugin_generated_file(
+    workspace_name: str,
+    filename: str,
+    content: str,
+    allowed_filenames: set[str],
+    overwrite: bool = False,
+) -> dict[str, Any]:
+    """Write a file authorized by the selected generator plugin."""
+
+    return _write_file(
+        workspace_name=workspace_name,
+        filename=filename,
+        content=content,
+        overwrite=overwrite,
+        allowed_filenames=allowed_filenames,
+    )
+
+
 def read_generated_file(
     workspace_name: str,
     filename: str,
 ) -> dict[str, Any]:
-    """
-    Read an approved file from a generated Terraform workspace.
-
-    Args:
-        workspace_name: Existing workspace name.
-        filename: Approved filename.
-
-    Returns:
-        File contents and metadata.
-    """
+    """Read a safe file from an existing generated workspace."""
 
     workspace = get_workspace_path(workspace_name)
-    approved_filename = _validate_filename(filename)
+
+    try:
+        approved_filename = _validate_safe_filename(filename)
+    except ValueError as exc:
+        return {
+            "status": "error",
+            "message": str(exc),
+        }
+
     target = (workspace / approved_filename).resolve()
 
     try:
@@ -142,22 +208,33 @@ def read_generated_file(
     }
 
 
-def list_generated_files(workspace_name: str) -> dict[str, Any]:
-    """List approved files currently present in a workspace."""
+def list_generated_files(
+    workspace_name: str,
+) -> dict[str, Any]:
+    """List safe generated files currently present in a workspace."""
 
     workspace = get_workspace_path(workspace_name)
 
-    if not workspace.exists():
+    if not workspace.exists() or not workspace.is_dir():
         return {
             "status": "error",
             "message": f"Workspace does not exist: {workspace_name}",
         }
 
-    files = sorted(
-        path.name
-        for path in workspace.iterdir()
-        if path.is_file() and path.name in ALLOWED_TERRAFORM_FILES
-    )
+    files: list[str] = []
+
+    for path in workspace.iterdir():
+        if not path.is_file():
+            continue
+
+        try:
+            _validate_safe_filename(path.name)
+        except ValueError:
+            continue
+
+        files.append(path.name)
+
+    files.sort()
 
     return {
         "status": "success",

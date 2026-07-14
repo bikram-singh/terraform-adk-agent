@@ -1,15 +1,43 @@
 """Service-neutral orchestration pipeline."""
 
 from __future__ import annotations
+
 from typing import Any
+
 from terraform_agent.generators.base import GeneratorContext
 from terraform_agent.generators.base.validation import validate_workspace_name
 from terraform_agent.intelligence.models import ResourcePlan
 from terraform_agent.intelligence.registry import get_generator
 from terraform_agent.intelligence.reporting import build_validation_report
-from terraform_agent.tools.file_tools import write_generated_file
+from terraform_agent.tools.file_tools import (
+    write_plugin_generated_file,
+)
 from terraform_agent.tools.terraform_tools import terraform_full_validation
 from terraform_agent.tools.workspace_tools import create_workspace
+
+
+_ENGINE_OWNED_FILES = frozenset({"validation-report.md"})
+
+
+def _validate_plugin_file_contract(
+    generated_files: set[str],
+    declared_files: set[str],
+) -> None:
+    """Ensure a plugin emits exactly the files declared in its metadata."""
+
+    undeclared = generated_files - declared_files
+    missing = declared_files - generated_files
+    problems: list[str] = []
+
+    if undeclared:
+        problems.append(f"undeclared generated files: {sorted(undeclared)}")
+    if missing:
+        problems.append(f"declared files not generated: {sorted(missing)}")
+
+    if problems:
+        raise ValueError(
+            "Generator file contract violation: " + "; ".join(problems)
+        )
 
 
 def generate_service_project(
@@ -18,12 +46,17 @@ def generate_service_project(
     values: dict[str, Any],
 ) -> dict[str, Any]:
     """Generate and validate a project through a registered plugin."""
+
     try:
         workspace = validate_workspace_name(workspace_name)
         generator = get_generator(service)
         generated = generator.generate(
             GeneratorContext(workspace_name=workspace, values=values)
         )
+
+        declared_files = set(generated.metadata.generated_files)
+        emitted_files = set(generated.files)
+        _validate_plugin_file_contract(emitted_files, declared_files)
     except (ValueError, TypeError) as exc:
         return {
             "status": "error",
@@ -38,13 +71,15 @@ def generate_service_project(
         resources=generated.metadata.resources,
         generated_files=(
             *generated.metadata.generated_files,
-            "validation-report.md",
+            *_ENGINE_OWNED_FILES,
         ),
         security_controls=generated.metadata.supported_features,
         request=dict(values),
     )
+
     workspace_result = create_workspace(
-        service=plan.service, workspace_name=workspace
+        service=plan.service,
+        workspace_name=workspace,
     )
     if workspace_result["status"] != "success":
         return {
@@ -55,15 +90,18 @@ def generate_service_project(
             "deployment_performed": False,
         }
 
-    file_results = []
+    file_results: list[dict[str, Any]] = []
+
     for filename, content in generated.files.items():
-        result = write_generated_file(
+        result = write_plugin_generated_file(
             workspace_name=workspace,
             filename=filename,
             content=content,
             overwrite=False,
+            allowed_filenames=declared_files,
         )
         file_results.append(result)
+
         if result["status"] != "success":
             return {
                 "status": "error",
@@ -76,12 +114,15 @@ def generate_service_project(
 
     validation = terraform_full_validation(workspace)
     report = build_validation_report(plan, validation)
-    report_result = write_generated_file(
+
+    report_result = write_plugin_generated_file(
         workspace_name=workspace,
         filename="validation-report.md",
         content=report,
         overwrite=False,
+        allowed_filenames=set(_ENGINE_OWNED_FILES),
     )
+
     return {
         "status": validation["status"],
         "stage": "complete",
@@ -93,70 +134,22 @@ def generate_service_project(
         "validation_report": report_result,
         "deployment_performed": False,
         "message": (
-            "Multi-Service Generator Framework completed generation and "
-            "local validation. No infrastructure was deployed."
+            "Generation and local validation completed. "
+            "No infrastructure was deployed."
         ),
     }
 
 
-def generate_intelligent_gcs_project(
-    workspace_name: str,
-    region: str = "asia-south1",
-    environment: str = "dev",
-    owner: str = "platform-team",
-    application: str = "terraform-adk-agent",
-    noncurrent_version_retention_days: int = 30,
-) -> dict[str, Any]:
-    """Compatibility wrapper for the GCS ADK tool."""
-    return generate_service_project(
-        "gcs",
-        workspace_name,
-        {
-            "region": region,
-            "environment": environment,
-            "owner": owner,
-            "application": application,
-            "noncurrent_version_retention_days":
-                noncurrent_version_retention_days,
-        },
-    )
+def generate_intelligent_gcs_project(**kwargs: Any) -> dict[str, Any]:
+    workspace_name = kwargs.pop("workspace_name")
+    return generate_service_project("gcs", workspace_name, kwargs)
 
 
-def generate_intelligent_cloud_run_project(
-    workspace_name: str,
-    service_name: str,
-    container_image: str,
-    region: str = "asia-south1",
-    environment: str = "dev",
-    owner: str = "platform-team",
-    application: str = "terraform-adk-agent",
-    container_port: int = 8080,
-    cpu: str = "1",
-    memory: str = "512Mi",
-    min_instances: int = 0,
-    max_instances: int = 5,
-    ingress: str = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER",
-    allow_unauthenticated: bool = False,
-    deletion_protection: bool = True,
-) -> dict[str, Any]:
-    """Generate and locally validate a Cloud Run Terraform project."""
-    return generate_service_project(
-        "cloud-run",
-        workspace_name,
-        {
-            "service_name": service_name,
-            "container_image": container_image,
-            "region": region,
-            "environment": environment,
-            "owner": owner,
-            "application": application,
-            "container_port": container_port,
-            "cpu": cpu,
-            "memory": memory,
-            "min_instances": min_instances,
-            "max_instances": max_instances,
-            "ingress": ingress,
-            "allow_unauthenticated": allow_unauthenticated,
-            "deletion_protection": deletion_protection,
-        },
-    )
+def generate_intelligent_cloud_run_project(**kwargs: Any) -> dict[str, Any]:
+    workspace_name = kwargs.pop("workspace_name")
+    return generate_service_project("cloud-run", workspace_name, kwargs)
+
+
+def generate_intelligent_gke_project(**kwargs: Any) -> dict[str, Any]:
+    workspace_name = kwargs.pop("workspace_name")
+    return generate_service_project("gke", workspace_name, kwargs)
