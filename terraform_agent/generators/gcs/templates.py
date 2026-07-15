@@ -16,7 +16,6 @@ terraform {
 PROVIDERS_TEMPLATE = """
 provider "google" {
   project = var.project_id
-  region  = var.region
 }
 """
 
