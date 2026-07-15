@@ -28,13 +28,14 @@ from terraform_agent.tools.project_tools import (
 )
 
 from terraform_agent.tools.terraform_tools import (
+    terraform_apply,
     terraform_format,
     terraform_full_validation,
     terraform_initialize,
-    terraform_validate,
     terraform_plan,
-    terraform_apply,
+    terraform_validate,
 )
+
 from terraform_agent.tools.workspace_tools import (
     create_workspace,
     list_workspaces,

@@ -1,6 +1,7 @@
 """Root ADK agent with generators and structured Registry services."""
 
 from google.adk.agents import Agent
+from google.genai import types
 
 from terraform_agent.config import get_settings
 from terraform_agent.mcp import terraform_mcp_enabled
@@ -9,6 +10,7 @@ from terraform_agent.services import (
     get_terraform_provider_version,
     get_terraform_resource_guidance,
 )
+
 from terraform_agent.tools import (
     assemble_private_cloud_run_postgres_platform,
     create_workspace,
@@ -27,9 +29,11 @@ from terraform_agent.tools import (
     list_workspaces,
     plan_terraform_architecture,
     read_generated_file,
+    terraform_apply,
     terraform_format,
     terraform_full_validation,
     terraform_initialize,
+    terraform_plan,
     terraform_validate,
     write_generated_file,
 )
@@ -60,6 +64,8 @@ agent_tools = [
     terraform_initialize,
     terraform_validate,
     terraform_full_validation,
+    terraform_plan,
+    terraform_apply,
 ]
 
 if terraform_mcp_enabled():
@@ -72,16 +78,19 @@ if terraform_mcp_enabled():
 
 
 root_agent = Agent(
-    name="terraform_platform_agent",
+    name="terraform_agent",
     model=settings.adk_model,
-    description=(
-        "Enterprise AI Infrastructure Architect for Google Cloud: turns "
-        "natural-language requests into fully assembled, locally "
-        "validated Terraform projects (private Cloud Run + Cloud SQL "
-        "today), plus secure GCS, Cloud Run, GKE, Cloud SQL, networking, "
-        "Secret Manager, IAM, Cloud Functions, Pub/Sub, and BigQuery "
-        "generation, and structured Registry guidance."
-    ),
     instruction=SYSTEM_PROMPT,
-    tools=agent_tools,
+    tools=[
+        *agent_tools,
+    ],
+    generate_content_config=types.GenerateContentConfig(
+        temperature=0.1,
+        http_options=types.HttpOptions(
+            retry_options=types.HttpRetryOptions(
+                initial_delay=2,
+                attempts=5,
+            )
+        )
+    ),
 )
