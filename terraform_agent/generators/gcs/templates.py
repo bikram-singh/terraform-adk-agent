@@ -25,15 +25,34 @@ variable "project_id" {
   type        = string
 }
 
-variable "region" {
-  description = "Bucket location."
+variable "location" {
+  description = "Google Cloud Storage bucket location."
   type        = string
-  default     = "$region"
+  default     = "$location"
+
+  validation {
+    condition     = length(trimspace(var.location)) > 0
+    error_message = "Bucket location cannot be empty."
+  }
 }
 
 variable "bucket_name" {
   description = "Globally unique bucket name."
   type        = string
+}
+
+variable "storage_class" {
+  description = "Google Cloud Storage class."
+  type        = string
+  default     = "$storage_class"
+
+  validation {
+    condition = contains(
+      ["STANDARD", "NEARLINE", "COLDLINE", "ARCHIVE"],
+      upper(var.storage_class)
+    )
+    error_message = "Storage class must be STANDARD, NEARLINE, COLDLINE, or ARCHIVE."
+  }
 }
 
 variable "environment" {
@@ -58,6 +77,11 @@ variable "noncurrent_version_retention_days" {
   description = "Retention period for noncurrent object versions."
   type        = number
   default     = $retention_days
+
+  validation {
+    condition     = var.noncurrent_version_retention_days >= 1
+    error_message = "Retention days must be at least 1."
+  }
 }
 """
 
@@ -67,14 +91,16 @@ locals {
     environment = var.environment
     owner       = var.owner
     application = var.application
-    managed_by  = "terraform"
+    managed_by  = "terraform-adk-agent"
   }
 }
 
 resource "google_storage_bucket" "this" {
-  name                        = var.bucket_name
-  project                     = var.project_id
-  location                    = var.region
+  name          = var.bucket_name
+  project       = var.project_id
+  location      = var.location
+  storage_class = var.storage_class
+
   uniform_bucket_level_access = true
   public_access_prevention    = "enforced"
   force_destroy               = false
@@ -99,20 +125,21 @@ resource "google_storage_bucket" "this" {
 
 OUTPUTS_TEMPLATE = """
 output "bucket_name" {
-  value       = google_storage_bucket.this.name
   description = "Bucket name."
+  value       = google_storage_bucket.this.name
 }
 
 output "bucket_url" {
-  value       = google_storage_bucket.this.url
   description = "Bucket URL."
+  value       = google_storage_bucket.this.url
 }
 """
 
 TFVARS_TEMPLATE = """
-project_id  = "your-project-id"
-region      = "$region"
-bucket_name = "replace-with-a-globally-unique-name"
+project_id    = "$project_id"
+bucket_name   = "$bucket_name"
+location      = "$location"
+storage_class = "$storage_class"
 
 environment = "$environment"
 owner       = "$owner"
@@ -124,7 +151,7 @@ noncurrent_version_retention_days = $retention_days
 README_TEMPLATE = """
 # Secure Google Cloud Storage Bucket
 
-This project creates one private GCS bucket.
+This project creates one private Google Cloud Storage bucket.
 
 ## Security controls
 
@@ -134,6 +161,8 @@ This project creates one private GCS bucket.
 - No public IAM grants
 - `force_destroy = false`
 - Standard labels
+- Configurable storage class
+- Lifecycle cleanup for noncurrent object versions
 
 ## Validation
 
@@ -141,5 +170,5 @@ This project creates one private GCS bucket.
     terraform init -backend=false
     terraform validate
 
-No infrastructure was deployed by the Terraform Platform Agent.
+No infrastructure was deployed during generation and local validation.
 """

@@ -20,7 +20,10 @@ from terraform_agent.intelligence.engine import (
 
 def generate_gcs_terraform_project(
     workspace_name: str,
-    region: str = "asia-south1",
+    project_id: str,
+    bucket_name: str,
+    location: str = "asia-south1",
+    storage_class: str = "STANDARD",
     environment: str = "dev",
     owner: str = "platform-team",
     application: str = "terraform-adk-agent",
@@ -30,7 +33,10 @@ def generate_gcs_terraform_project(
 
     return generate_intelligent_gcs_project(
         workspace_name=workspace_name,
-        region=region,
+        project_id=project_id,
+        bucket_name=bucket_name,
+        location=location,
+        storage_class=storage_class,
         environment=environment,
         owner=owner,
         application=application,
