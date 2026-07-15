@@ -12,10 +12,12 @@ from terraform_agent.services import (
 from terraform_agent.tools import (
     create_workspace,
     generate_cloud_run_terraform_project,
+    generate_cloud_sql_terraform_project,
     generate_gcs_terraform_project,
     generate_gke_terraform_project,
     list_generated_files,
     list_workspaces,
+    plan_terraform_architecture,
     read_generated_file,
     terraform_format,
     terraform_full_validation,
@@ -30,7 +32,9 @@ settings = get_settings()
 agent_tools = [
     generate_gcs_terraform_project,
     generate_cloud_run_terraform_project,
+    generate_cloud_sql_terraform_project,
     generate_gke_terraform_project,
+    plan_terraform_architecture,
     create_workspace,
     list_workspaces,
     write_generated_file,

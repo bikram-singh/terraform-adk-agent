@@ -153,3 +153,15 @@ def generate_intelligent_cloud_run_project(**kwargs: Any) -> dict[str, Any]:
 def generate_intelligent_gke_project(**kwargs: Any) -> dict[str, Any]:
     workspace_name = kwargs.pop("workspace_name")
     return generate_service_project("gke", workspace_name, kwargs)
+
+def generate_intelligent_cloud_sql_project(
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Generate and validate a Cloud SQL project."""
+
+    workspace_name = kwargs.pop("workspace_name")
+    return generate_service_project(
+        "cloud-sql",
+        workspace_name,
+        kwargs,
+    )

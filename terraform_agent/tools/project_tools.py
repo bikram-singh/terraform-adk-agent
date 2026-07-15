@@ -6,6 +6,7 @@ from typing import Any
 
 from terraform_agent.intelligence.engine import (
     generate_intelligent_cloud_run_project,
+    generate_intelligent_cloud_sql_project,
     generate_intelligent_gcs_project,
     generate_intelligent_gke_project,
 )
@@ -128,4 +129,57 @@ def generate_gke_terraform_project(
         artifact_registry_repository_id=(
             artifact_registry_repository_id
         ),
+    )
+def generate_cloud_sql_terraform_project(
+    workspace_name: str,
+    instance_name: str,
+    private_network: str,
+    region: str = "asia-south1",
+    database_version: str = "POSTGRES_16",
+    tier: str = "db-custom-2-7680",
+    availability_type: str = "REGIONAL",
+    disk_size_gb: int = 100,
+    database_name: str = "application",
+    enable_iam_database_authentication: bool = True,
+    backup_start_time: str = "02:00",
+    backup_retained_count: int = 14,
+    transaction_log_retention_days: int = 7,
+    maintenance_day: int = 7,
+    maintenance_hour: int = 3,
+    deletion_protection: bool = True,
+    environment: str = "dev",
+    owner: str = "platform-team",
+    application: str = "terraform-adk-agent",
+) -> dict[str, Any]:
+    """
+    Generate and locally validate a private Cloud SQL project.
+
+    The VPC and Private Service Access connection must already exist.
+    No database password is generated and nothing is deployed.
+    """
+
+    return generate_intelligent_cloud_sql_project(
+        workspace_name=workspace_name,
+        instance_name=instance_name,
+        private_network=private_network,
+        region=region,
+        database_version=database_version,
+        tier=tier,
+        availability_type=availability_type,
+        disk_size_gb=disk_size_gb,
+        database_name=database_name,
+        enable_iam_database_authentication=(
+            enable_iam_database_authentication
+        ),
+        backup_start_time=backup_start_time,
+        backup_retained_count=backup_retained_count,
+        transaction_log_retention_days=(
+            transaction_log_retention_days
+        ),
+        maintenance_day=maintenance_day,
+        maintenance_hour=maintenance_hour,
+        deletion_protection=deletion_protection,
+        environment=environment,
+        owner=owner,
+        application=application,
     )
