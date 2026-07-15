@@ -11,7 +11,7 @@ from terraform_agent.tools.workspace_tools import get_workspace_path
 
 _SAFE_FILENAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 _ALLOWED_SUFFIXES = {".tf", ".md", ".json"}
-_ALLOWED_EXACT_FILENAMES = {"terraform.tfvars.example"}
+_ALLOWED_EXACT_FILENAMES = {"terraform.tfvars.example", "terraform.tfvars"}
 _MODULE_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9-]{1,40}$")
 
 

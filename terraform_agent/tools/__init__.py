@@ -32,6 +32,8 @@ from terraform_agent.tools.terraform_tools import (
     terraform_full_validation,
     terraform_initialize,
     terraform_validate,
+    terraform_plan,
+    terraform_apply,
 )
 from terraform_agent.tools.workspace_tools import (
     create_workspace,
@@ -61,4 +63,6 @@ __all__ = [
     "terraform_initialize",
     "terraform_validate",
     "terraform_full_validation",
+    "terraform_plan",
+    "terraform_apply",
 ]

@@ -172,3 +172,209 @@ def terraform_full_validation(workspace_name: str) -> dict[str, Any]:
             "No infrastructure was deployed."
         ),
     }
+
+
+def terraform_plan(
+    workspace_name: str,
+    var_file: str = "terraform.tfvars",
+    destroy: bool = False,
+) -> dict[str, Any]:
+    """
+    Create a real Terraform execution plan for human review.
+
+    This connects to the real Google Cloud project configured for the
+    workspace's provider and reads live state. It does not create,
+    modify, or destroy anything by itself.
+
+    Requires TERRAFORM_ALLOW_APPLY=true in the environment (or
+    TERRAFORM_ALLOW_DESTROY=true when destroy=True), and a real
+    var_file (typically terraform.tfvars, not the .example placeholder)
+    already present in the workspace with reviewed, real values such as
+    the actual project_id.
+
+    Produces a saved plan file (tfplan or tfplan-destroy) that must be
+    reviewed by the user before terraform_apply is called with the same
+    plan_file. Never call terraform_apply automatically after this in
+    the same turn; always show the plan output and wait for explicit
+    user confirmation first.
+    """
+
+    settings = get_settings()
+    required_flag = (
+        settings.terraform_allow_destroy
+        if destroy
+        else settings.terraform_allow_apply
+    )
+    flag_name = (
+        "TERRAFORM_ALLOW_DESTROY" if destroy else "TERRAFORM_ALLOW_APPLY"
+    )
+
+    if not required_flag:
+        return {
+            "status": "error",
+            "message": (
+                f"Real deployment is disabled. Set {flag_name}=true in "
+                ".env and restart the agent process to enable this "
+                "operation."
+            ),
+            "deployment_performed": False,
+        }
+
+    workspace = get_workspace_path(workspace_name)
+
+    if not workspace.exists() or not workspace.is_dir():
+        return {
+            "status": "error",
+            "message": f"Workspace does not exist: {workspace_name}",
+            "deployment_performed": False,
+        }
+
+    var_file_path = (workspace / var_file).resolve()
+    try:
+        var_file_path.relative_to(workspace.resolve())
+    except ValueError:
+        return {
+            "status": "error",
+            "message": "Rejected var_file path outside the workspace.",
+            "deployment_performed": False,
+        }
+
+    if not var_file_path.exists():
+        return {
+            "status": "error",
+            "message": (
+                f"'{var_file}' does not exist in workspace "
+                f"'{workspace_name}'. Copy terraform.tfvars.example to "
+                f"{var_file}, fill in real reviewed values such as the "
+                "actual project_id, then try again."
+            ),
+            "deployment_performed": False,
+        }
+
+    init_result = _run_terraform_command(
+        workspace_name,
+        ["init", "-input=false", "-no-color"],
+    )
+
+    if init_result["status"] != "success":
+        return {
+            "status": "error",
+            "workspace_name": workspace_name,
+            "initialize": init_result,
+            "message": "Terraform initialization failed before planning.",
+            "deployment_performed": False,
+        }
+
+    plan_file = "tfplan-destroy" if destroy else "tfplan"
+    plan_arguments = ["plan", "-input=false", "-no-color"]
+    if destroy:
+        plan_arguments.append("-destroy")
+    plan_arguments.extend([f"-var-file={var_file}", f"-out={plan_file}"])
+
+    plan_result = _run_terraform_command(workspace_name, plan_arguments)
+
+    return {
+        "status": plan_result["status"],
+        "workspace_name": workspace_name,
+        "initialize": init_result,
+        "plan": plan_result,
+        "plan_file": plan_file,
+        "deployment_performed": False,
+        "message": (
+            "Plan created against real Google Cloud state. Review the "
+            "plan output carefully with the user before calling "
+            "terraform_apply with the same plan_file. Nothing has been "
+            "created, modified, or destroyed yet."
+        ),
+    }
+
+
+def terraform_apply(
+    workspace_name: str,
+    plan_file: str = "tfplan",
+    destroy: bool = False,
+) -> dict[str, Any]:
+    """
+    Apply a previously created and human-reviewed Terraform plan file.
+
+    This creates, modifies, or destroys real Google Cloud infrastructure
+    and may incur real cost. Only ever call this after terraform_plan
+    has been run in the same workspace and the user has explicitly
+    reviewed the plan output and confirmed, in this conversation, that
+    they want to proceed. Never call this in the same turn as
+    terraform_plan without that explicit confirmation.
+
+    Requires TERRAFORM_ALLOW_APPLY=true in the environment (or
+    TERRAFORM_ALLOW_DESTROY=true when destroy=True matches a destroy
+    plan) and an existing plan_file produced by terraform_plan.
+    """
+
+    settings = get_settings()
+    required_flag = (
+        settings.terraform_allow_destroy
+        if destroy
+        else settings.terraform_allow_apply
+    )
+    flag_name = (
+        "TERRAFORM_ALLOW_DESTROY" if destroy else "TERRAFORM_ALLOW_APPLY"
+    )
+
+    if not required_flag:
+        return {
+            "status": "error",
+            "message": (
+                f"Real deployment is disabled. Set {flag_name}=true in "
+                ".env and restart the agent process to enable this "
+                "operation."
+            ),
+            "deployment_performed": False,
+        }
+
+    workspace = get_workspace_path(workspace_name)
+
+    if not workspace.exists() or not workspace.is_dir():
+        return {
+            "status": "error",
+            "message": f"Workspace does not exist: {workspace_name}",
+            "deployment_performed": False,
+        }
+
+    plan_path = (workspace / plan_file).resolve()
+    try:
+        plan_path.relative_to(workspace.resolve())
+    except ValueError:
+        return {
+            "status": "error",
+            "message": "Rejected plan_file path outside the workspace.",
+            "deployment_performed": False,
+        }
+
+    if not plan_path.exists():
+        return {
+            "status": "error",
+            "message": (
+                f"Plan file '{plan_file}' does not exist in workspace "
+                f"'{workspace_name}'. Call terraform_plan first and "
+                "review its output with the user before applying."
+            ),
+            "deployment_performed": False,
+        }
+
+    apply_result = _run_terraform_command(
+        workspace_name,
+        ["apply", "-input=false", "-no-color", plan_file],
+    )
+
+    return {
+        "status": apply_result["status"],
+        "workspace_name": workspace_name,
+        "apply": apply_result,
+        "deployment_performed": apply_result["status"] == "success",
+        "message": (
+            "Real infrastructure change applied. Cloud resources may "
+            "have been created, modified, or destroyed."
+            if apply_result["status"] == "success"
+            else "Apply failed. Review the error above; Terraform "
+            "state reflects only what actually succeeded."
+        ),
+    }
