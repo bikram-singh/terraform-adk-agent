@@ -12,6 +12,7 @@ from terraform_agent.tools.workspace_tools import get_workspace_path
 _SAFE_FILENAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 _ALLOWED_SUFFIXES = {".tf", ".md", ".json"}
 _ALLOWED_EXACT_FILENAMES = {"terraform.tfvars.example"}
+_MODULE_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9-]{1,40}$")
 
 
 def _validate_safe_filename(filename: str) -> str:
@@ -166,6 +167,103 @@ def write_plugin_generated_file(
         overwrite=overwrite,
         allowed_filenames=allowed_filenames,
     )
+
+
+def write_module_file(
+    workspace_name: str,
+    module_name: str,
+    filename: str,
+    content: str,
+    allowed_filenames: set[str],
+    overwrite: bool = False,
+) -> dict[str, Any]:
+    """
+    Write a generator-owned file under modules/<module_name>/ in a workspace.
+
+    Reserved for the Project Assembler, which composes multiple generator
+    plugins into one workspace using local Terraform modules. Not exposed
+    directly to ADK.
+    """
+
+    workspace = get_workspace_path(workspace_name)
+
+    if not workspace.exists() or not workspace.is_dir():
+        return {
+            "status": "error",
+            "message": f"Workspace does not exist: {workspace_name}",
+        }
+
+    cleaned_module_name = module_name.strip()
+    if not _MODULE_NAME_PATTERN.fullmatch(cleaned_module_name):
+        return {
+            "status": "error",
+            "message": f"Invalid module_name: {module_name}",
+        }
+
+    try:
+        approved_filename = _validate_safe_filename(filename)
+    except ValueError as exc:
+        return {
+            "status": "error",
+            "message": str(exc),
+        }
+
+    if approved_filename not in allowed_filenames:
+        return {
+            "status": "error",
+            "message": (
+                f"File '{approved_filename}' is not declared by this "
+                f"generator. Declared files: {sorted(allowed_filenames)}"
+            ),
+        }
+
+    workspace_resolved = workspace.resolve()
+    module_dir = (workspace_resolved / "modules" / cleaned_module_name)
+
+    try:
+        module_dir.resolve().relative_to(workspace_resolved)
+    except ValueError:
+        return {
+            "status": "error",
+            "message": "Rejected path outside the approved workspace.",
+        }
+
+    target = (module_dir / approved_filename).resolve()
+
+    try:
+        target.relative_to(workspace_resolved)
+    except ValueError:
+        return {
+            "status": "error",
+            "message": "Rejected path outside the approved workspace.",
+        }
+
+    module_dir.mkdir(parents=True, exist_ok=True)
+
+    if target.exists() and not overwrite:
+        return {
+            "status": "error",
+            "message": (
+                f"File already exists: modules/{cleaned_module_name}/"
+                f"{approved_filename}. Set overwrite=true only when "
+                "replacement is intentional."
+            ),
+        }
+
+    target.write_text(
+        content,
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    return {
+        "status": "success",
+        "workspace_name": workspace_name,
+        "module_name": cleaned_module_name,
+        "filename": approved_filename,
+        "path": str(target),
+        "bytes_written": target.stat().st_size,
+    }
 
 
 def read_generated_file(

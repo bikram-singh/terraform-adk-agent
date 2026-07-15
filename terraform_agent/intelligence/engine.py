@@ -165,3 +165,55 @@ def generate_intelligent_cloud_sql_project(
         workspace_name,
         kwargs,
     )
+
+
+def generate_intelligent_network_project(
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Generate and validate a private networking foundation project."""
+
+    workspace_name = kwargs.pop("workspace_name")
+    return generate_service_project(
+        "network",
+        workspace_name,
+        kwargs,
+    )
+
+
+def generate_intelligent_secret_manager_project(
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Generate and validate a Secret Manager project."""
+
+    workspace_name = kwargs.pop("workspace_name")
+    return generate_service_project(
+        "secret-manager",
+        workspace_name,
+        kwargs,
+    )
+
+
+def generate_intelligent_iam_project(
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Generate and validate an IAM foundation project."""
+
+    workspace_name = kwargs.pop("workspace_name")
+    return generate_service_project(
+        "iam",
+        workspace_name,
+        kwargs,
+    )
+
+
+def generate_intelligent_cloud_functions_project(
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Generate and validate a Cloud Functions (2nd gen) project."""
+
+    workspace_name = kwargs.pop("workspace_name")
+    return generate_service_project(
+        "cloud-functions",
+        workspace_name,
+        kwargs,
+    )

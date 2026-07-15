@@ -176,9 +176,7 @@ locals {
     managed_by  = "terraform"
   }
 
-  iam_auth_flag = local.is_postgres
-    ? "cloudsql.iam_authentication"
-    : "cloudsql_iam_authentication"
+  iam_auth_flag = local.is_postgres ? "cloudsql.iam_authentication" : "cloudsql_iam_authentication"
 }
 
 resource "google_sql_database_instance" "this" {

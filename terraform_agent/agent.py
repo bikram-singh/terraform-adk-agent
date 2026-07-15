@@ -10,11 +10,17 @@ from terraform_agent.services import (
     get_terraform_resource_guidance,
 )
 from terraform_agent.tools import (
+    assemble_private_cloud_run_postgres_platform,
     create_workspace,
+    design_infrastructure_platform,
+    generate_cloud_functions_terraform_project,
     generate_cloud_run_terraform_project,
     generate_cloud_sql_terraform_project,
     generate_gcs_terraform_project,
     generate_gke_terraform_project,
+    generate_iam_terraform_project,
+    generate_network_terraform_project,
+    generate_secret_manager_terraform_project,
     list_generated_files,
     list_workspaces,
     plan_terraform_architecture,
@@ -30,10 +36,16 @@ from terraform_agent.tools import (
 settings = get_settings()
 
 agent_tools = [
+    design_infrastructure_platform,
+    assemble_private_cloud_run_postgres_platform,
     generate_gcs_terraform_project,
     generate_cloud_run_terraform_project,
     generate_cloud_sql_terraform_project,
     generate_gke_terraform_project,
+    generate_network_terraform_project,
+    generate_secret_manager_terraform_project,
+    generate_iam_terraform_project,
+    generate_cloud_functions_terraform_project,
     plan_terraform_architecture,
     create_workspace,
     list_workspaces,
@@ -59,8 +71,12 @@ root_agent = Agent(
     name="terraform_platform_agent",
     model=settings.adk_model,
     description=(
-        "Terraform Platform Agent with secure GCS, Cloud Run, and GKE "
-        "generation, local validation, and structured Registry guidance."
+        "Enterprise AI Infrastructure Architect for Google Cloud: turns "
+        "natural-language requests into fully assembled, locally "
+        "validated Terraform projects (private Cloud Run + Cloud SQL "
+        "today), plus secure GCS, Cloud Run, GKE, Cloud SQL, networking, "
+        "Secret Manager, IAM, and Cloud Functions generation, and "
+        "structured Registry guidance."
     ),
     instruction=SYSTEM_PROMPT,
     tools=agent_tools,

@@ -7,6 +7,15 @@ import re
 
 _WORKSPACE_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]{2,79}$")
 _LABEL_PATTERN = re.compile(r"^[a-z0-9_-]{1,63}$")
+_IAM_MEMBER_PREFIXES = (
+    "serviceAccount:",
+    "user:",
+    "group:",
+    "domain:",
+    "principal:",
+    "principalSet:",
+)
+_PUBLIC_IAM_MEMBERS = {"allUsers", "allAuthenticatedUsers"}
 
 
 def require_non_empty(value: str, field_name: str) -> str:
@@ -40,3 +49,21 @@ def normalize_label_value(value: str, field_name: str) -> str:
             "lower-case letters, numbers, hyphens, or underscores."
         )
     return cleaned
+
+
+def validate_iam_member(value: str, field_name: str) -> str:
+    """Validate an IAM member reference, rejecting public principals."""
+
+    cleaned = require_non_empty(value, field_name)
+    if cleaned in _PUBLIC_IAM_MEMBERS:
+        raise ValueError(
+            f"{field_name} must not be '{cleaned}'. Grant access to "
+            "specific principals only."
+        )
+    if not cleaned.startswith(_IAM_MEMBER_PREFIXES):
+        raise ValueError(
+            f"Invalid {field_name} '{cleaned}'. Members must start with "
+            f"one of {_IAM_MEMBER_PREFIXES}."
+        )
+    return cleaned
+

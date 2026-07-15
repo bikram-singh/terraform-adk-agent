@@ -5,6 +5,9 @@ AVAILABLE = {
     "cloud-sql",
     "gcs",
     "gke",
+    "iam",
+    "network",
+    "secret-manager",
 }
 
 def node(node_id, service, resource_type, purpose, generator=None, config=None):
@@ -20,14 +23,14 @@ def node(node_id, service, resource_type, purpose, generator=None, config=None):
 
 def private_cloud_run_cloud_sql_graph(region: str, database_engine: str, environment: str) -> ArchitectureGraph:
     nodes = (
-        node("vpc", "vpc", "google_compute_network", "Private application network."),
-        node("subnet", "vpc", "google_compute_subnetwork", "Regional application subnet.", config={"region": region}),
-        node("private-service-access", "networking", "google_service_networking_connection", "Private services connectivity."),
-        node("serverless-vpc-connector", "networking", "google_vpc_access_connector", "Cloud Run private VPC egress.", config={"region": region}),
+        node("vpc", "vpc", "google_compute_network", "Private application network.", generator="network"),
+        node("subnet", "vpc", "google_compute_subnetwork", "Regional application subnet.", generator="network", config={"region": region}),
+        node("private-service-access", "networking", "google_service_networking_connection", "Private services connectivity.", generator="network"),
+        node("serverless-vpc-connector", "networking", "google_vpc_access_connector", "Cloud Run private VPC egress.", generator="network", config={"region": region}),
         node("cloud-sql", "cloud-sql", "google_sql_database_instance", "Private relational database.", generator="cloud-sql", config={"database_engine": database_engine, "region": region}),
-        node("database-secret", "secret-manager", "google_secret_manager_secret", "Database credential reference."),
-        node("runtime-service-account", "iam", "google_service_account", "Dedicated runtime identity."),
-        node("runtime-iam", "iam", "google_project_iam_member", "Least-privilege runtime permissions."),
+        node("database-secret", "secret-manager", "google_secret_manager_secret", "Database credential reference.", generator="secret-manager"),
+        node("runtime-service-account", "iam", "google_service_account", "Dedicated runtime identity.", generator="iam"),
+        node("runtime-iam", "iam", "google_project_iam_member", "Least-privilege runtime permissions.", generator="iam"),
         node("cloud-run", "cloud-run", "google_cloud_run_v2_service", "Private serverless application.", generator="cloud-run", config={"region": region, "environment": environment}),
     )
     edges = (
@@ -43,12 +46,25 @@ def private_cloud_run_cloud_sql_graph(region: str, database_engine: str, environ
         DependencyEdge("cloud-run", "cloud-sql", "connects_to"),
         DependencyEdge("cloud-run", "database-secret", "reads"),
     )
+    unsupported = [
+        n for n in nodes
+        if n.required and n.implementation_status != "available"
+    ]
+    if unsupported:
+        warnings = (
+            "Planning only: required generators are not all available.",
+            "Do not claim complete project generation until every required node is available.",
+        )
+    else:
+        warnings = (
+            "All required generators are available. Each generator "
+            "must still be invoked individually; automatic multi-service "
+            "assembly into a single project is not implemented until the "
+            "Project Assembler (v0.9.5).",
+        )
     return ArchitectureGraph(
         architecture_type="private-cloud-run-cloud-sql",
         nodes=nodes,
         edges=edges,
-        warnings=(
-            "Planning only: required generators are not all available.",
-            "Do not claim complete project generation until every required node is available.",
-        ),
+        warnings=warnings,
     )
