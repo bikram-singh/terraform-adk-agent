@@ -23,6 +23,8 @@ from terraform_agent.tools.project_tools import (
     generate_network_terraform_project,
     generate_secret_manager_terraform_project,
     generate_cloud_functions_terraform_project,
+    generate_pubsub_terraform_project,
+    generate_bigquery_terraform_project,
 )
 
 from terraform_agent.tools.terraform_tools import (
@@ -48,6 +50,8 @@ __all__ = [
     "generate_secret_manager_terraform_project",
     "generate_iam_terraform_project",
     "generate_cloud_functions_terraform_project",
+    "generate_pubsub_terraform_project",
+    "generate_bigquery_terraform_project",
     "create_workspace",
     "list_workspaces",
     "write_generated_file",

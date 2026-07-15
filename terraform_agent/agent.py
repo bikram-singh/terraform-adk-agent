@@ -13,6 +13,7 @@ from terraform_agent.tools import (
     assemble_private_cloud_run_postgres_platform,
     create_workspace,
     design_infrastructure_platform,
+    generate_bigquery_terraform_project,
     generate_cloud_functions_terraform_project,
     generate_cloud_run_terraform_project,
     generate_cloud_sql_terraform_project,
@@ -20,6 +21,7 @@ from terraform_agent.tools import (
     generate_gke_terraform_project,
     generate_iam_terraform_project,
     generate_network_terraform_project,
+    generate_pubsub_terraform_project,
     generate_secret_manager_terraform_project,
     list_generated_files,
     list_workspaces,
@@ -46,6 +48,8 @@ agent_tools = [
     generate_secret_manager_terraform_project,
     generate_iam_terraform_project,
     generate_cloud_functions_terraform_project,
+    generate_pubsub_terraform_project,
+    generate_bigquery_terraform_project,
     plan_terraform_architecture,
     create_workspace,
     list_workspaces,
@@ -75,8 +79,8 @@ root_agent = Agent(
         "natural-language requests into fully assembled, locally "
         "validated Terraform projects (private Cloud Run + Cloud SQL "
         "today), plus secure GCS, Cloud Run, GKE, Cloud SQL, networking, "
-        "Secret Manager, IAM, and Cloud Functions generation, and "
-        "structured Registry guidance."
+        "Secret Manager, IAM, Cloud Functions, Pub/Sub, and BigQuery "
+        "generation, and structured Registry guidance."
     ),
     instruction=SYSTEM_PROMPT,
     tools=agent_tools,

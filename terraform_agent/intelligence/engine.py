@@ -217,3 +217,29 @@ def generate_intelligent_cloud_functions_project(
         workspace_name,
         kwargs,
     )
+
+
+def generate_intelligent_pubsub_project(
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Generate and validate a Pub/Sub project."""
+
+    workspace_name = kwargs.pop("workspace_name")
+    return generate_service_project(
+        "pubsub",
+        workspace_name,
+        kwargs,
+    )
+
+
+def generate_intelligent_bigquery_project(
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Generate and validate a BigQuery project."""
+
+    workspace_name = kwargs.pop("workspace_name")
+    return generate_service_project(
+        "bigquery",
+        workspace_name,
+        kwargs,
+    )

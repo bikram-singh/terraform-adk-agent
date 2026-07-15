@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from terraform_agent.intelligence.engine import (
+    generate_intelligent_bigquery_project,
     generate_intelligent_cloud_functions_project,
     generate_intelligent_cloud_run_project,
     generate_intelligent_cloud_sql_project,
@@ -12,6 +13,7 @@ from terraform_agent.intelligence.engine import (
     generate_intelligent_gke_project,
     generate_intelligent_iam_project,
     generate_intelligent_network_project,
+    generate_intelligent_pubsub_project,
     generate_intelligent_secret_manager_project,
 )
 
@@ -353,3 +355,80 @@ def generate_cloud_functions_terraform_project(
         owner=owner,
         application=application,
     )
+
+
+def generate_pubsub_terraform_project(
+    workspace_name: str,
+    topics: list[str],
+    region: str = "asia-south1",
+    subscriptions: dict[str, dict[str, Any]] | None = None,
+    publisher_members: list[str] | None = None,
+    subscriber_members: list[str] | None = None,
+    environment: str = "dev",
+    owner: str = "platform-team",
+    application: str = "terraform-adk-agent",
+) -> dict[str, Any]:
+    """
+    Generate and locally validate a Pub/Sub project.
+
+    Creates one or more topics and, optionally, subscriptions with
+    least-privilege publisher/subscriber IAM bindings and opt-in
+    dead-letter queues. Each subscription entry accepts topic (required),
+    ack_deadline_seconds, message_retention_duration,
+    enable_dead_letter, and max_delivery_attempts. Nothing is deployed.
+    """
+
+    return generate_intelligent_pubsub_project(
+        workspace_name=workspace_name,
+        topics=topics,
+        region=region,
+        subscriptions=subscriptions or {},
+        publisher_members=publisher_members or [],
+        subscriber_members=subscriber_members or [],
+        environment=environment,
+        owner=owner,
+        application=application,
+    )
+
+
+def generate_bigquery_terraform_project(
+    workspace_name: str,
+    dataset_id: str,
+    region: str = "asia-south1",
+    location: str = "",
+    default_table_expiration_ms: int | None = None,
+    deletion_protection: bool = True,
+    tables: dict[str, dict[str, Any]] | None = None,
+    reader_members: list[str] | None = None,
+    editor_members: list[str] | None = None,
+    environment: str = "dev",
+    owner: str = "platform-team",
+    application: str = "terraform-adk-agent",
+) -> dict[str, Any]:
+    """
+    Generate and locally validate a BigQuery project.
+
+    Creates one dataset and one or more tables with least-privilege IAM
+    bindings. Each table entry accepts schema_json (a JSON array string,
+    not a file reference), description, and partitioning_field. Leave
+    tables unset to generate one default sample table. Nothing is
+    deployed.
+    """
+
+    kwargs: dict[str, Any] = {
+        "workspace_name": workspace_name,
+        "dataset_id": dataset_id,
+        "region": region,
+        "location": location or region,
+        "default_table_expiration_ms": default_table_expiration_ms,
+        "deletion_protection": deletion_protection,
+        "reader_members": reader_members or [],
+        "editor_members": editor_members or [],
+        "environment": environment,
+        "owner": owner,
+        "application": application,
+    }
+    if tables is not None:
+        kwargs["tables"] = tables
+
+    return generate_intelligent_bigquery_project(**kwargs)
