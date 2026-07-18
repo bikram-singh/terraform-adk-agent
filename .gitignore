@@ -26,3 +26,11 @@ service-account-key*.json
 .DS_Store
 Thumbs.db
 "@ | Set-Content ".gitignore"
+# Terraform E2E runtime artifacts
+generated/**/.terraform/
+generated/**/*.tfstate
+generated/**/*.tfstate.*
+generated/**/*.tfplan
+generated/**/*-plan-summary.json
+generated/**/terraform.live.tfvars
+generated/**/.terraform.lock.hcl
