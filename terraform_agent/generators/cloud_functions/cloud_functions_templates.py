@@ -9,6 +9,10 @@ terraform {
       source  = "$provider_source"
       version = "$provider_version"
     }
+    time = {
+      source  = "hashicorp/time"
+      version = ">= 0.9.0, < 1.0.0"
+    }
   }
 }
 """
@@ -244,8 +248,10 @@ resource "google_cloudfunctions2_function" "this" {
     all_traffic_on_latest_revision  = true
     service_account_email           = google_service_account.runtime.email
     environment_variables           = var.environment_variables
-    vpc_connector                   = var.vpc_connector
-    vpc_connector_egress_settings   = var.vpc_connector_egress_settings
+    vpc_connector = var.vpc_connector
+    vpc_connector_egress_settings = (
+      var.vpc_connector != null ? var.vpc_connector_egress_settings : null
+    )
 
     dynamic "secret_environment_variables" {
       for_each = var.secret_environment_variables
@@ -263,6 +269,7 @@ resource "google_cloudfunctions2_function" "this" {
   depends_on = [
     google_project_iam_member.runtime_roles,
     google_secret_manager_secret_iam_member.secret_access,
+    time_sleep.wait_for_runtime_sa_propagation,
   ]
 }
 """
@@ -275,6 +282,12 @@ resource "google_service_account" "runtime" {
   description  = "Dedicated runtime identity for Cloud Function $${var.function_name}."
 }
 
+# IAM changes, including newly-created service accounts, are eventually
+# consistent in GCP. Without this buffer, Cloud Run (which backs Cloud
+# Functions 2nd gen) can intermittently reject the function creation with
+# "Permission 'iam.serviceaccounts.actAs' denied ... (or it may not
+# exist)" even though Terraform's own API call already reported the
+# service account as created.
 resource "time_sleep" "wait_for_runtime_sa_propagation" {
   depends_on      = [google_service_account.runtime]
   create_duration = "30s"
