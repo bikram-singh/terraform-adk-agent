@@ -58,6 +58,17 @@ variable "tier" {
   default     = "$tier"
 }
 
+variable "edition" {
+  description = "Cloud SQL edition: ENTERPRISE (classic, works with db-custom-* tiers) or ENTERPRISE_PLUS (requires db-perf-optimized-* tiers)."
+  type        = string
+  default     = "$edition"
+
+  validation {
+    condition     = contains(["ENTERPRISE", "ENTERPRISE_PLUS"], var.edition)
+    error_message = "edition must be ENTERPRISE or ENTERPRISE_PLUS."
+  }
+}
+
 variable "availability_type" {
   description = "ZONAL or REGIONAL."
   type        = string
@@ -189,6 +200,7 @@ resource "google_sql_database_instance" "this" {
 
   settings {
     tier              = var.tier
+    edition           = var.edition
     availability_type = var.availability_type
     disk_type         = "PD_SSD"
     disk_size         = var.disk_size_gb
@@ -284,6 +296,7 @@ region           = "$region"
 instance_name    = "$instance_name"
 database_version = "$database_version"
 tier             = "$tier"
+edition          = "$edition"
 
 availability_type = "$availability_type"
 disk_size_gb      = $disk_size_gb

@@ -75,6 +75,20 @@ variable "master_ipv4_cidr_block" {
   default     = "$master_ipv4_cidr_block"
 }
 
+variable "master_authorized_networks" {
+  description = "CIDR blocks allowed to reach the cluster's control plane. Required by the GKE API whenever enable_private_endpoint is true."
+  type = list(object({
+    cidr_block   = string
+    display_name = string
+  }))
+  default = [
+    {
+      cidr_block   = "10.0.0.0/8"
+      display_name = "rfc1918-private-range"
+    }
+  ]
+}
+
 variable "enable_private_endpoint" {
   description = "Use only a private control-plane endpoint."
   type        = bool
@@ -206,6 +220,16 @@ resource "google_container_cluster" "standard" {
     master_ipv4_cidr_block  = var.master_ipv4_cidr_block
   }
 
+  master_authorized_networks_config {
+    dynamic "cidr_blocks" {
+      for_each = var.master_authorized_networks
+      content {
+        cidr_block   = cidr_blocks.value.cidr_block
+        display_name = cidr_blocks.value.display_name
+      }
+    }
+  }
+
   release_channel {
     channel = var.release_channel
   }
@@ -268,6 +292,16 @@ resource "google_container_cluster" "autopilot" {
     enable_private_nodes    = true
     enable_private_endpoint = var.enable_private_endpoint
     master_ipv4_cidr_block  = var.master_ipv4_cidr_block
+  }
+
+  master_authorized_networks_config {
+    dynamic "cidr_blocks" {
+      for_each = var.master_authorized_networks
+      content {
+        cidr_block   = cidr_blocks.value.cidr_block
+        display_name = cidr_blocks.value.display_name
+      }
+    }
   }
 
   release_channel {

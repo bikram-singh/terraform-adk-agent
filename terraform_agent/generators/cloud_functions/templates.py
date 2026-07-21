@@ -244,8 +244,8 @@ resource "google_cloudfunctions2_function" "this" {
     all_traffic_on_latest_revision  = true
     service_account_email           = google_service_account.runtime.email
     environment_variables           = var.environment_variables
-    vpc_connector                   = var.vpc_connector
-    vpc_connector_egress_settings   = var.vpc_connector_egress_settings
+    vpc_connector = var.vpc_connector
+    vpc_connector_egress_settings = var.vpc_connector != null ? var.vpc_connector_egress_settings : null
 
     dynamic "secret_environment_variables" {
       for_each = var.secret_environment_variables
@@ -263,6 +263,7 @@ resource "google_cloudfunctions2_function" "this" {
   depends_on = [
     google_project_iam_member.runtime_roles,
     google_secret_manager_secret_iam_member.secret_access,
+    time_sleep.wait_for_runtime_sa_propagation,
   ]
 }
 """

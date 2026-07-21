@@ -57,6 +57,12 @@ class CloudSQLGenerator:
                 "database_version must be PostgreSQL or MySQL."
             )
 
+        edition = str(values.get("edition", "ENTERPRISE")).upper()
+        if edition not in {"ENTERPRISE", "ENTERPRISE_PLUS"}:
+            raise ValueError(
+                "edition must be ENTERPRISE or ENTERPRISE_PLUS."
+            )
+
         availability_type = str(
             values.get("availability_type", "REGIONAL")
         ).upper()
@@ -103,6 +109,7 @@ class CloudSQLGenerator:
             "instance_name": instance_name,
             "database_version": database_version,
             "tier": str(values.get("tier", "db-custom-2-7680")),
+            "edition": edition,
             "availability_type": availability_type,
             "disk_size_gb": str(disk_size_gb),
             "enable_iam_database_authentication": str(
