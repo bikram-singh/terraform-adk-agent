@@ -71,21 +71,72 @@ v0.9.1  Cloud SQL generator                                   ✅
 —       Full live Apply/Destroy verification, all 10 generators ✅ (this cycle)
 ```
 
-## What's actually next
+## Composed architectures
 
-Every standalone generator is fully proven — plan-level and live
-apply/destroy alike. The honest next milestone is **composing generators
-together** into more pre-built architectures, the same way
-`assembler_tools.py` already composes Network + Cloud SQL + Secret
-Manager + Cloud Run:
+Beyond the 10 standalone generators, the assembler composes multiple
+generators into pre-built architectures:
 
+| Architecture | Generators composed | Status |
+|---|---|---|
+| Private Cloud Run + Cloud SQL platform | Network, Cloud SQL, Secret Manager, Cloud Run | Plan-level validated; not yet live-tested as a combined stack |
+| BigQuery + Pub/Sub + Cloud Functions event pipeline | Pub/Sub, Cloud Functions, BigQuery | **Fully live-verified**, including a real functional test — a real Pub/Sub message was published, genuinely triggered the Cloud Function via Eventarc, and produced a real row in BigQuery. Confirmed 245.6s. |
+
+**Real bugs found and fixed building the event pipeline:**
+- Extended the Cloud Functions generator itself with a proper `trigger_type` (HTTP/PUBSUB) option — a genuine new capability, fully backward-compatible, including the full IAM chain a Pub/Sub-triggered function needs (`roles/eventarc.eventReceiver`, `roles/run.invoker`, and the easy-to-miss Pub/Sub service-agent `roles/iam.serviceAccountTokenCreator` grant).
+- The pipeline assembler initially forgot to override `deletion_protection` for the BigQuery table, blocking destroy — fixed by properly exposing it as a root-level variable (defaults `true` for real deployments, overridable for tests).
+- The live test's functional verification originally shelled out to the `gcloud` and `bq` CLIs, both of which are `.cmd` wrappers on Windows that Python's `subprocess.run` can't resolve without `shell=True` — replaced with the native `google-cloud-bigquery` and `google-cloud-pubsub` Python clients, which also sidesteps an unrelated, pre-existing `bq` CLI installation bug on this machine.
+
+## What's next
+
+The trimmed roadmap items below are still open. The "Cloud Run + Cloud SQL"
+architecture is a reasonable candidate for the same live-testing treatment
+the event pipeline just received, if there's appetite for it.
+
+
+The original v2.0-v4.0 vision included several items scoped for a
+multi-year commercial platform team, not a solo project. Cut those
+entirely rather than let them go stale on paper again. What's left is
+realistic, buildable incrementally, and mostly extends things that
+already exist.
+
+**Cut entirely** (kept out of scope on purpose — revisit only if the
+project's scale genuinely changes):
+- Phase 3 (Multi-Agent System, RAG Knowledge Base, Self-Healing
+  Infrastructure, Platform Dashboard)
+- Phase 4 (Complete Enterprise IaC Platform)
+- v2.0 Enterprise MCP Server as a second, bigger MCP layer (basic
+  Terraform MCP integration already shipped at v0.7)
+- v2.6 Cost Optimization Engine (full Billing API + forecasting scope)
+- Auto-remediation half of drift detection (detection is kept, see below)
+
+**Immediate next step:**
 ```
-[ ] GKE + Network + IAM              — private, VPC-native Kubernetes platform stack
-[ ] BigQuery + Pub/Sub + Cloud Functions — event-driven data pipeline
-[ ] Give the existing Cloud Run + Cloud SQL + Secret Manager assembler its own live E2E test
-    (its pieces are proven individually, but never tested live as a combined stack)
+[ ] Expand the multi-service architecture assembler
+    - GKE + Network + IAM (private, VPC-native Kubernetes platform stack), or
+    - BigQuery + Pub/Sub + Cloud Functions (event-driven data pipeline)
+    - Give the composed stack the same live E2E treatment each
+      standalone generator already received
 ```
 
-Pick whichever matches a real use case first; these aren't sequenced by
-version number the way the original roadmap was, since they're
-independent compositions of already-proven parts.
+**Kept, scoped down to realistic solo-project size, roughly in order:**
+```
+[ ] Terraform Agent SDK       — refactor existing CLI-wrapping code
+                                 (terraform_runner.py, tools/) into a
+                                 clean, reusable async SDK layer
+[ ] Documentation Generator   — extend the README-per-module pattern
+                                 several generators already have,
+                                 consistently across all 10
+[ ] Lightweight Policy as Code — simple Python checks (required labels,
+                                 naming, region allowlist) run before
+                                 generate/apply; not a full OPA-style engine
+[ ] Drift Detection (detection only) — compare live state vs. real GCP,
+                                 report differences; no auto-remediation
+[ ] Lightweight Module Registry — static manifest of the 10 modules with
+                                 metadata; no separate search/dependency-
+                                 graph systems
+[ ] Check whether the AI Assistant idea (NL → Terraform) is already
+    covered by the existing ADK agent before building anything new
+```
+
+Nothing here is version-numbered on purpose — these are independent,
+pick-what-you-need items now, not a strict sequence.
