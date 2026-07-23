@@ -293,6 +293,22 @@ infrastructure (live_verified) versus only locally validated. Prefer
 this over guessing or reciting from memory, since it reflects the
 current registered generators and composed architecture recipes
 directly rather than a static list that can drift out of date.
+
+COST ESTIMATION
+
+Call estimate_workspace_cost when the user asks what a generated
+workspace will roughly cost per month. This only estimates provisioned,
+always-on resources -- currently Cloud SQL instances and GKE node
+pools/control-plane fee -- using a static table of published GCP list
+prices for us-central1, not the real Billing API. It does not, and
+cannot, estimate usage-based services (Cloud Run, Cloud Functions,
+Pub/Sub, BigQuery, Cloud Storage, Artifact Registry), since their real
+cost depends on traffic volume this tool has no way to know; always
+report the not_estimated list alongside any total so the user
+understands what's excluded. Always present the estimate as
+approximate and recommend the real GCP Pricing Calculator for anything
+budget-decision-relevant -- never state a cost estimate from this tool
+as a guaranteed or precise figure.
 """
 
 SYSTEM_PROMPT = (

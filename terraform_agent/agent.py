@@ -20,6 +20,7 @@ from terraform_agent.tools import (
     detect_infrastructure_drift,
     check_policy_compliance,
     list_available_infrastructure_modules,
+    estimate_workspace_cost,
     generate_artifact_registry_terraform_project,
     generate_bigquery_terraform_project,
     generate_cloud_functions_terraform_project,
@@ -78,6 +79,7 @@ agent_tools = [
     detect_infrastructure_drift,
     check_policy_compliance,
     list_available_infrastructure_modules,
+    estimate_workspace_cost,
 ]
 
 if terraform_mcp_enabled():

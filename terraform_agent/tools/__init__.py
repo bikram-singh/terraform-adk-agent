@@ -17,6 +17,9 @@ from terraform_agent.tools.drift_tools import (
 from terraform_agent.tools.policy_tools import (
     check_policy_compliance,
 )
+from terraform_agent.tools.cost_tools import (
+    estimate_workspace_cost,
+)
 from terraform_agent.tools.registry_tools import (
     list_available_infrastructure_modules,
 )
@@ -62,6 +65,7 @@ __all__ = [
     "detect_infrastructure_drift",
     "check_policy_compliance",
     "list_available_infrastructure_modules",
+    "estimate_workspace_cost",
     "generate_artifact_registry_terraform_project",
     "generate_gcs_terraform_project",
     "generate_cloud_sql_terraform_project",
