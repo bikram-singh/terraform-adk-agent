@@ -4,3 +4,5 @@ python-dotenv
 pydantic
 pydantic-settings
 pytestmcp
+pytest
+mcp

@@ -31,19 +31,21 @@ def design_infrastructure_platform(
 
     Call this first for any request describing a business need or a
     multi-service architecture, for example "Create a private Cloud Run
-    API connected to PostgreSQL" or "Build a secure internal API
-    platform on GCP". It detects the architecture, builds the dependency
-    graph, and, when the recipe is fully supported, assembles and locally
-    validates every required module (network, Cloud SQL, Secret Manager,
-    Cloud Run) in this single call.
+    API connected to PostgreSQL", "Build an event-driven pipeline with
+    Pub/Sub, Cloud Functions, and BigQuery", or "Create a GKE cluster
+    with Workload Identity". It detects the architecture, builds the
+    dependency graph, and, when the recipe is fully supported, assembles
+    and locally validates every required module in this single call.
 
-    Only the private Cloud Run + Cloud SQL recipe is fully supported
-    today. Unsupported requests return a structured error listing the
-    supported recipes and the individual generators available instead of
-    a partial or misleading project. Leave region, database_version, and
-    allow_unauthenticated empty/default to infer them from the request
-    text; pass explicit values to override inference. Nothing is ever
-    deployed.
+    Three composed architecture recipes are fully supported today:
+    private Cloud Run + Cloud SQL, the BigQuery + Pub/Sub + Cloud
+    Functions event pipeline, and the GKE + Network + IAM Workload
+    Identity platform. Unsupported requests return a structured error
+    listing the supported recipes and the individual generators
+    available instead of a partial or misleading project. Leave region,
+    database_version, and allow_unauthenticated empty/default to infer
+    them from the request text; pass explicit values to override
+    inference. Nothing is ever deployed.
     """
 
     return design_infrastructure(
