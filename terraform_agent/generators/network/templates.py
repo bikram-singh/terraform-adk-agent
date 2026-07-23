@@ -1,4 +1,4 @@
-"""Terraform templates for the Network plugin."""
+﻿"""Terraform templates for the Network plugin."""
 
 VERSIONS_TEMPLATE = """
 terraform {
@@ -53,7 +53,7 @@ variable "subnet_cidr" {
 variable "secondary_ip_ranges" {
   description = "Optional secondary IP ranges keyed by range name."
   type        = map(string)
-  default     = $secondary_ip_ranges
+  $secondary_ip_ranges_default_line
 }
 
 variable "private_service_access_range_name" {
@@ -248,7 +248,7 @@ Cloud Run, GKE, and Cloud SQL workloads:
   before a private Cloud SQL instance can be attached to this network
 - An optional Serverless VPC Access connector for Cloud Run egress
 
-Security defaults:
+## Security defaults
 
 - `auto_create_subnetworks = false`, subnets are explicit and reviewed
 - `private_ip_google_access = true` on the subnet

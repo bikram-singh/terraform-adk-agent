@@ -1,4 +1,4 @@
-"""Terraform templates for the Secret Manager plugin."""
+﻿"""Terraform templates for the Secret Manager plugin."""
 
 VERSIONS_TEMPLATE = """
 terraform {
@@ -35,19 +35,19 @@ variable "region" {
 variable "secret_ids" {
   description = "Secret Manager secret IDs to create. No secret material is set here."
   type        = list(string)
-  default     = $secret_ids
+  $secret_ids_default_line
 }
 
 variable "replication_locations" {
   description = "Optional list of regions for user-managed replication. Empty enables automatic (global) replication."
   type        = list(string)
-  default     = $replication_locations
+  $replication_locations_default_line
 }
 
 variable "accessor_members" {
   description = "IAM members granted roles/secretmanager.secretAccessor on every secret, for example serviceAccount:runtime@project.iam.gserviceaccount.com."
   type        = list(string)
-  default     = $accessor_members
+  $accessor_members_default_line
 }
 
 variable "environment" {
@@ -127,7 +127,7 @@ IAM_TEMPLATE = """
 resource "google_secret_manager_secret_iam_member" "accessor" {
   for_each = {
     for pair in local.accessor_bindings :
-    "$${pair.secret_id}:$${pair.member}" => pair
+    "${pair.secret_id}:${pair.member}" => pair
   }
 
   project   = var.project_id

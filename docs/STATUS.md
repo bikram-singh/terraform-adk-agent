@@ -78,8 +78,21 @@ generators into pre-built architectures:
 
 | Architecture | Generators composed | Status |
 |---|---|---|
-| Private Cloud Run + Cloud SQL platform | Network, Cloud SQL, Secret Manager, Cloud Run | Plan-level validated; not yet live-tested as a combined stack |
+| Private Cloud Run + Cloud SQL platform | Network, Cloud SQL, Secret Manager, Cloud Run | **Fully live-verified** — real network/PSA/Cloud SQL/Cloud Run all deployed, cross-module wiring confirmed (Cloud Run genuinely reached healthy/serving state), clean teardown. Confirmed 1101.5s (~18m22s). |
 | BigQuery + Pub/Sub + Cloud Functions event pipeline | Pub/Sub, Cloud Functions, BigQuery | **Fully live-verified**, including a real functional test — a real Pub/Sub message was published, genuinely triggered the Cloud Function via Eventarc, and produced a real row in BigQuery. Confirmed 245.6s. |
+| GKE + Network + IAM (Workload Identity) platform | GKE, IAM | **Fully live-verified** — real private GKE cluster, node pool, and a genuinely distinct Workload Identity-bound application service account (confirmed via state, not just resource existence: correct `roles/iam.workloadIdentityUser` binding scoped to the exact Kubernetes ServiceAccount). Confirmed 1216.3s (~20m16s), first try after one setup fix. |
+
+**Real bugs found and fixed building the GKE platform live test:**
+- `gke_deletion_protection` was entirely missing from the assembler (hardcoded `true`, no override), the same class of gap as Cloud SQL/Cloud Run — fixed properly as a real parameter, not just patched for the test.
+- The assembler passes `region` straight through as the GKE module's `location`, making the cluster regional (spanning every zone at once) — reapplied the same zone-pinning fix (`us-central1-a`) the standalone GKE live test needed after a real `GCE_STOCKOUT`, plus the same `pd-standard` disk override (the generator's default `pd-balanced` had drawn on exhausted SSD quota before).
+- A subtler near-miss, caught before running anything real: the first draft of that disk-type override specified only `node_config { disk_type = "pd-standard" }`. Terraform override files replace nested blocks wholesale rather than merging individual attributes — that draft would have silently dropped `service_account`, `oauth_scopes`, and `shielded_instance_config`, breaking the entire Workload Identity chain. Fixed by reproducing the full block with only `disk_type` changed.
+- One simple but completely blocking naming mistake: the override file was named `live_test_overrides.tf` (plural). Terraform's override auto-detection only matches the exact suffix `_override.tf` (singular) — the plural version was silently treated as an ordinary file, producing real duplicate-resource errors instead of the intended merge. One-character-class fix, caught immediately from the error message.
+
+**Real bugs found and fixed building the Cloud Run + Cloud SQL live test:**
+- The assembler never overrode `deletion_protection` for either Cloud SQL or Cloud Run — both default `true` (the safe choice), which silently blocked `terraform destroy`. Fixed by properly exposing `db_deletion_protection` and `cloud_run_deletion_protection` as real assembler parameters, matching the pattern already used for BigQuery.
+- Cloud Run's `DB_PASSWORD` env var references Secret Manager version `"latest"`, but this architecture deliberately generates no secret version at all (by design — no real credential should ever be baked into Terraform state). Fixed at the test level only: a placeholder secret version + a two-phase apply (secret first, then everything else), since the shared architecture is correct to leave real credential population out-of-band.
+- A real, persistent GCP-side quirk: this project's Private Service Access peering connections took far longer than Terraform's own wait period to release during teardown — confirmed repeatedly (7+ separate attempts) even well after the last real consumer (Cloud SQL) was already gone. Fixed the correct way, using Terraform's native `deletion_policy = "ABANDON"` on just that one resource, scoped to the test only (a real production teardown should still actually delete it).
+- Along the way, this quirk also caused real quota exhaustion (GCP's default 5-networks-per-project limit) from accumulated orphaned test networks, requiring manual `gcloud` cleanup a few times before the fix landed.
 
 **Real bugs found and fixed building the event pipeline:**
 - Extended the Cloud Functions generator itself with a proper `trigger_type` (HTTP/PUBSUB) option — a genuine new capability, fully backward-compatible, including the full IAM chain a Pub/Sub-triggered function needs (`roles/eventarc.eventReceiver`, `roles/run.invoker`, and the easy-to-miss Pub/Sub service-agent `roles/iam.serviceAccountTokenCreator` grant).
@@ -88,10 +101,10 @@ generators into pre-built architectures:
 
 ## What's next
 
-The trimmed roadmap items below are still open. The "Cloud Run + Cloud SQL"
-architecture is a reasonable candidate for the same live-testing treatment
-the event pipeline just received, if there's appetite for it.
-
+**All three composed architectures are now fully live-verified**, on top
+of all 10 standalone generators. There is no longer an "immediate next
+step" queued up — the trimmed roadmap items below are independent of
+each other and of roughly equal priority; pick whichever is useful:
 
 The original v2.0-v4.0 vision included several items scoped for a
 multi-year commercial platform team, not a solo project. Cut those
@@ -108,15 +121,6 @@ project's scale genuinely changes):
   Terraform MCP integration already shipped at v0.7)
 - v2.6 Cost Optimization Engine (full Billing API + forecasting scope)
 - Auto-remediation half of drift detection (detection is kept, see below)
-
-**Immediate next step:**
-```
-[ ] Expand the multi-service architecture assembler
-    - GKE + Network + IAM (private, VPC-native Kubernetes platform stack), or
-    - BigQuery + Pub/Sub + Cloud Functions (event-driven data pipeline)
-    - Give the composed stack the same live E2E treatment each
-      standalone generator already received
-```
 
 **Kept, scoped down to realistic solo-project size, roughly in order:**
 ```

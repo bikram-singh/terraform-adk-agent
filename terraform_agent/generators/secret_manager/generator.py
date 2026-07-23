@@ -1,4 +1,4 @@
-"""Secret Manager implementation of the generator contract."""
+﻿"""Secret Manager implementation of the generator contract."""
 
 from __future__ import annotations
 
@@ -9,7 +9,11 @@ from terraform_agent.generators.base import (
     GeneratorContext,
     ServiceMetadata,
 )
-from terraform_agent.generators.base.renderer import render_template
+from terraform_agent.generators.base.renderer import (
+    render_default_assignment,
+    render_hcl_string_list,
+    render_template,
+)
 from terraform_agent.generators.base.validation import (
     normalize_label_value,
     validate_iam_member,
@@ -32,14 +36,6 @@ from terraform_agent.generators.secret_manager.templates import (
 
 _SECRET_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,255}$")
 _REGION_PATTERN = re.compile(r"^[a-z]+-[a-z]+\d+$")
-
-
-def _render_hcl_list(values: list[str]) -> str:
-    if not values:
-        return "[]"
-
-    lines = ",\n".join(f'    "{value}"' for value in values)
-    return "[\n" + lines + "\n  ]"
 
 
 class SecretManagerGenerator:
@@ -105,6 +101,14 @@ class SecretManagerGenerator:
             "application",
         )
 
+        rendered_secret_ids = render_hcl_string_list(secret_ids)
+        rendered_replication_locations = render_hcl_string_list(
+            replication_locations
+        )
+        rendered_accessor_members = render_hcl_string_list(
+            accessor_members
+        )
+
         template_values = {
             "terraform_version": GOOGLE_PROVIDER[
                 "terraform_version_constraint"
@@ -112,11 +116,20 @@ class SecretManagerGenerator:
             "provider_source": GOOGLE_PROVIDER["source"],
             "provider_version": GOOGLE_PROVIDER["version_constraint"],
             "region": region,
-            "secret_ids": _render_hcl_list(secret_ids),
-            "replication_locations": _render_hcl_list(
-                replication_locations
+            "secret_ids": rendered_secret_ids,
+            "secret_ids_default_line": render_default_assignment(
+                rendered_secret_ids
             ),
-            "accessor_members": _render_hcl_list(accessor_members),
+            "replication_locations": rendered_replication_locations,
+            "replication_locations_default_line": (
+                render_default_assignment(
+                    rendered_replication_locations
+                )
+            ),
+            "accessor_members": rendered_accessor_members,
+            "accessor_members_default_line": render_default_assignment(
+                rendered_accessor_members
+            ),
             "environment": environment,
             "owner": owner,
             "application": application,

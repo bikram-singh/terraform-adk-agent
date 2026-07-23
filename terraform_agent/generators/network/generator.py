@@ -9,7 +9,10 @@ from terraform_agent.generators.base import (
     GeneratorContext,
     ServiceMetadata,
 )
-from terraform_agent.generators.base.renderer import render_template
+from terraform_agent.generators.base.renderer import (
+    render_default_assignment,
+    render_template,
+)
 from terraform_agent.generators.base.validation import require_non_empty
 from terraform_agent.generators.network.metadata import NETWORK_METADATA
 from terraform_agent.generators.network.templates import (
@@ -168,6 +171,9 @@ class NetworkGenerator:
             "subnet_name": subnet_name,
             "subnet_cidr": subnet_cidr,
             "secondary_ip_ranges": _render_hcl_map(secondary_ip_ranges),
+            "secondary_ip_ranges_default_line": render_default_assignment(
+                _render_hcl_map(secondary_ip_ranges)
+            ),
             "private_service_access_range_name": (
                 private_service_access_range_name
             ),

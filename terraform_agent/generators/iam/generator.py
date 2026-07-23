@@ -36,6 +36,11 @@ _ROLE_PATTERN = re.compile(
     r"[A-Za-z0-9_.]+$"
 )
 _DISALLOWED_ROLES = {"roles/owner", "roles/editor"}
+_ALLOWED_IMPERSONATION_ROLES = {
+    "roles/iam.serviceAccountUser",
+    "roles/iam.serviceAccountTokenCreator",
+    "roles/iam.workloadIdentityUser",
+}
 
 
 def _render_hcl_list(values: list[str]) -> str:
@@ -104,6 +109,15 @@ class IAMGenerator:
         if len(impersonators) != len(set(impersonators)):
             raise ValueError("impersonators must not contain duplicates.")
 
+        impersonation_role = str(
+            values.get("impersonation_role", "roles/iam.serviceAccountUser")
+        )
+        if impersonation_role not in _ALLOWED_IMPERSONATION_ROLES:
+            raise ValueError(
+                f"Unsupported impersonation_role: {impersonation_role}. "
+                f"Must be one of {sorted(_ALLOWED_IMPERSONATION_ROLES)}."
+            )
+
         environment = normalize_label_value(
             str(values.get("environment", "dev")),
             "environment",
@@ -128,6 +142,7 @@ class IAMGenerator:
             "service_account_display_name": service_account_display_name,
             "project_roles": _render_hcl_list(project_roles),
             "impersonators": _render_hcl_list(impersonators),
+            "impersonation_role": impersonation_role,
             "environment": environment,
             "owner": owner,
             "application": application,

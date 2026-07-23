@@ -1,4 +1,4 @@
-"""Terraform templates for the Pub/Sub plugin."""
+﻿"""Terraform templates for the Pub/Sub plugin."""
 
 VERSIONS_TEMPLATE = """
 terraform {
@@ -35,7 +35,7 @@ variable "region" {
 variable "topics" {
   description = "Pub/Sub topic names to create."
   type        = list(string)
-  default     = $topics
+  $topics_default_line
 }
 
 variable "subscriptions" {
@@ -53,13 +53,13 @@ variable "subscriptions" {
 variable "publisher_members" {
   description = "IAM members granted roles/pubsub.publisher on every topic."
   type        = list(string)
-  default     = $publisher_members
+  $publisher_members_default_line
 }
 
 variable "subscriber_members" {
   description = "IAM members granted roles/pubsub.subscriber on every subscription."
   type        = list(string)
-  default     = $subscriber_members
+  $subscriber_members_default_line
 }
 
 variable "environment" {
@@ -99,7 +99,7 @@ locals {
     if config.enable_dead_letter
   }
 
-  pubsub_service_agent = "serviceAccount:service-$${data.google_project.this.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+  pubsub_service_agent = "serviceAccount:service-${data.google_project.this.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
 }
 
 resource "google_pubsub_topic" "this" {
@@ -114,7 +114,7 @@ resource "google_pubsub_topic" "dead_letter" {
   for_each = local.dead_letter_subscriptions
 
   project = var.project_id
-  name    = "$${each.key}-dead-letter"
+  name    = "${each.key}-dead-letter"
   labels  = local.common_labels
 }
 """
@@ -161,7 +161,7 @@ resource "google_pubsub_topic_iam_member" "publishers" {
           member = member
         }
       ]
-    ]) : "$${pair.topic}:$${pair.member}" => pair
+    ]) : "${pair.topic}:${pair.member}" => pair
   }
 
   project = var.project_id
@@ -179,7 +179,7 @@ resource "google_pubsub_subscription_iam_member" "subscribers" {
           member       = member
         }
       ]
-    ]) : "$${pair.subscription}:$${pair.member}" => pair
+    ]) : "${pair.subscription}:${pair.member}" => pair
   }
 
   project      = var.project_id
@@ -248,7 +248,7 @@ README_TEMPLATE = """
 Creates one or more Pub/Sub topics and subscriptions with least-privilege
 IAM bindings and optional dead-letter queues.
 
-Security defaults:
+## Security defaults
 
 - Subscriptions never expire (`expiration_policy.ttl = ""`), preventing
   accidental data loss from inactivity-based deletion.

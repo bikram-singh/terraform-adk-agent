@@ -5,10 +5,12 @@ assembled, locally validated Terraform project by tying together the
 dependency graph (intent detection and capability resolution) and the
 Project Assembler (multi-generator composition).
 
-This is intentionally narrow today: only the private Cloud Run + Cloud
-SQL recipe is backed by a real assembler. Requests that describe a
-different or unsupported architecture return a structured, actionable
-error instead of a partial or misleading result.
+Three composed architecture recipes are backed by real, live-tested
+assemblers: private Cloud Run + Cloud SQL, the BigQuery + Pub/Sub +
+Cloud Functions event pipeline, and the GKE + Network + IAM Workload
+Identity platform. Requests that describe a different or unsupported
+architecture return a structured, actionable error instead of a partial
+or misleading result.
 """
 
 from __future__ import annotations
@@ -20,6 +22,12 @@ from terraform_agent.dependency_graph import build_dependency_graph
 from terraform_agent.dependency_graph.detector import detect_architecture_type
 from terraform_agent.intelligence.assembler import (
     assemble_private_cloud_run_cloud_sql_project,
+)
+from terraform_agent.intelligence.gke_platform_assembler import (
+    assemble_gke_workload_identity_platform,
+)
+from terraform_agent.intelligence.pipeline_assembler import (
+    assemble_bigquery_pubsub_pipeline,
 )
 from terraform_agent.intelligence.registry import list_registered_generators
 
@@ -36,7 +44,11 @@ _PUBLIC_HINTS = (
 )
 _MYSQL_HINTS = ("mysql",)
 
-_SUPPORTED_ARCHITECTURE_RECIPES = ("private-cloud-run-cloud-sql",)
+_SUPPORTED_ARCHITECTURE_RECIPES = (
+    "private-cloud-run-cloud-sql",
+    "bigquery-pubsub-cloud-functions-pipeline",
+    "gke-network-iam-workload-identity-platform",
+)
 
 
 def _extract_region(request: str, default: str) -> str:
@@ -98,9 +110,11 @@ def design_infrastructure(
             "message": (
                 "No supported architecture recipe matched this request. "
                 "Rephrase the request to name the services involved "
-                "(for example Cloud Run and Cloud SQL, kept private), or "
-                "call an individual generator directly for a single "
-                "service."
+                "-- for example Cloud Run and Cloud SQL kept private, "
+                "an event-driven pipeline naming Pub/Sub, Cloud "
+                "Functions, or BigQuery, or a GKE cluster naming "
+                "Workload Identity -- or call an individual generator "
+                "directly for a single service."
             ),
             "supported_architecture_recipes": (
                 _SUPPORTED_ARCHITECTURE_RECIPES
@@ -126,23 +140,40 @@ def design_infrastructure(
         environment,
     )
 
-    assembly = assemble_private_cloud_run_cloud_sql_project(
-        workspace_name=workspace_name,
-        region=resolved_region,
-        environment=environment,
-        owner=owner,
-        application=resolved_application,
-        network_name=network_name,
-        subnet_cidr=subnet_cidr,
-        database_version=resolved_database_version,
-        db_tier=db_tier,
-        db_availability_type=db_availability_type,
-        database_secret_id=database_secret_id,
-        service_name=service_name,
-        container_image=container_image,
-        container_port=container_port,
-        allow_unauthenticated=resolved_allow_unauthenticated,
-    )
+    if architecture_type == "bigquery-pubsub-cloud-functions-pipeline":
+        assembly = assemble_bigquery_pubsub_pipeline(
+            workspace_name=workspace_name,
+            region=resolved_region,
+            environment=environment,
+            owner=owner,
+            application=resolved_application,
+        )
+    elif architecture_type == "gke-network-iam-workload-identity-platform":
+        assembly = assemble_gke_workload_identity_platform(
+            workspace_name=workspace_name,
+            region=resolved_region,
+            environment=environment,
+            owner=owner,
+            application=resolved_application,
+        )
+    else:
+        assembly = assemble_private_cloud_run_cloud_sql_project(
+            workspace_name=workspace_name,
+            region=resolved_region,
+            environment=environment,
+            owner=owner,
+            application=resolved_application,
+            network_name=network_name,
+            subnet_cidr=subnet_cidr,
+            database_version=resolved_database_version,
+            db_tier=db_tier,
+            db_availability_type=db_availability_type,
+            database_secret_id=database_secret_id,
+            service_name=service_name,
+            container_image=container_image,
+            container_port=container_port,
+            allow_unauthenticated=resolved_allow_unauthenticated,
+        )
 
     return {
         "status": assembly["status"],

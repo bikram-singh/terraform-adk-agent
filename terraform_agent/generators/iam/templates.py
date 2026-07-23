@@ -1,4 +1,4 @@
-"""Terraform templates for the IAM plugin."""
+﻿"""Terraform templates for the IAM plugin."""
 
 VERSIONS_TEMPLATE = """
 terraform {
@@ -56,9 +56,27 @@ variable "project_roles" {
 }
 
 variable "impersonators" {
-  description = "IAM members granted roles/iam.serviceAccountUser scoped to this service account only."
+  description = "IAM members granted impersonation_role scoped to this service account only."
   type        = list(string)
   default     = $impersonators
+}
+
+variable "impersonation_role" {
+  description = "Role granted to each impersonator on this service account. roles/iam.serviceAccountUser (default) for direct impersonation, roles/iam.serviceAccountTokenCreator for minting short-lived tokens, or roles/iam.workloadIdentityUser for binding a Kubernetes ServiceAccount via GKE Workload Identity Federation."
+  type        = string
+  default     = "$impersonation_role"
+
+  validation {
+    condition = contains(
+      [
+        "roles/iam.serviceAccountUser",
+        "roles/iam.serviceAccountTokenCreator",
+        "roles/iam.workloadIdentityUser",
+      ],
+      var.impersonation_role
+    )
+    error_message = "impersonation_role must be roles/iam.serviceAccountUser, roles/iam.serviceAccountTokenCreator, or roles/iam.workloadIdentityUser."
+  }
 }
 
 variable "environment" {
@@ -107,7 +125,7 @@ resource "google_project_iam_member" "runtime_roles" {
 
   project = var.project_id
   role    = each.value
-  member  = "serviceAccount:$${google_service_account.this.email}"
+  member  = "serviceAccount:${google_service_account.this.email}"
 
   lifecycle {
     precondition {
@@ -123,7 +141,7 @@ resource "google_service_account_iam_member" "impersonators" {
   for_each = toset(var.impersonators)
 
   service_account_id = google_service_account.this.name
-  role                = "roles/iam.serviceAccountUser"
+  role                = var.impersonation_role
   member              = each.value
 }
 """
@@ -138,7 +156,7 @@ output "service_account_email" {
 }
 
 output "service_account_member" {
-  value = "serviceAccount:$${google_service_account.this.email}"
+  value = "serviceAccount:${google_service_account.this.email}"
 }
 
 output "granted_project_roles" {
@@ -156,6 +174,7 @@ service_account_display_name = "$service_account_display_name"
 project_roles = $project_roles
 
 impersonators = $impersonators
+impersonation_role = "$impersonation_role"
 
 environment = "$environment"
 owner       = "$owner"

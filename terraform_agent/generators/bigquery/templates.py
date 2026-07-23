@@ -75,13 +75,13 @@ variable "tables" {
 variable "reader_members" {
   description = "IAM members granted roles/bigquery.dataViewer on the dataset."
   type        = list(string)
-  default     = $reader_members
+  $reader_members_default_line
 }
 
 variable "editor_members" {
   description = "IAM members granted roles/bigquery.dataEditor on the dataset."
   type        = list(string)
-  default     = $editor_members
+  $editor_members_default_line
 }
 
 variable "environment" {

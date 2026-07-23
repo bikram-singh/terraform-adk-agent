@@ -73,6 +73,12 @@ variable "db_availability_type" {
   default     = "$db_availability_type"
 }
 
+variable "db_deletion_protection" {
+  description = "Protect the Cloud SQL instance from accidental deletion. Defaults to true (safe for real deployments); override to false for throwaway test/dev workspaces that need to be destroyed."
+  type        = bool
+  default     = $db_deletion_protection
+}
+
 variable "database_secret_id" {
   description = "Secret Manager secret ID holding the database credential. No value is stored by Terraform."
   type        = string
@@ -102,6 +108,12 @@ variable "allow_unauthenticated" {
   type        = bool
   default     = $allow_unauthenticated
 }
+
+variable "cloud_run_deletion_protection" {
+  description = "Protect the Cloud Run service from accidental deletion. Defaults to true (safe for real deployments); override to false for throwaway test/dev workspaces that need to be destroyed."
+  type        = bool
+  default     = $cloud_run_deletion_protection
+}
 """
 
 MAIN_TEMPLATE = """
@@ -129,6 +141,7 @@ module "cloud_sql" {
   database_version  = var.database_version
   tier              = var.db_tier
   availability_type = var.db_availability_type
+  deletion_protection = var.db_deletion_protection
   private_network   = module.network.network_self_link
   environment       = var.environment
   owner             = var.owner
@@ -157,6 +170,7 @@ module "cloud_run" {
   container_image       = var.container_image
   container_port        = var.container_port
   allow_unauthenticated = var.allow_unauthenticated
+  deletion_protection   = var.cloud_run_deletion_protection
   vpc_connector         = module.network.vpc_connector_id
   cloud_sql_instances   = [module.cloud_sql.connection_name]
 
@@ -220,12 +234,14 @@ subnet_cidr  = "$subnet_cidr"
 database_version    = "$database_version"
 db_tier              = "$db_tier"
 db_availability_type = "$db_availability_type"
+db_deletion_protection = $db_deletion_protection
 database_secret_id   = "$database_secret_id"
 
 service_name          = "$service_name"
 container_image       = "$container_image"
 container_port        = $container_port
 allow_unauthenticated = $allow_unauthenticated
+cloud_run_deletion_protection = $cloud_run_deletion_protection
 """
 
 README_TEMPLATE = """

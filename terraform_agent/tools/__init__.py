@@ -8,6 +8,17 @@ from terraform_agent.tools.architect_tools import (
 )
 from terraform_agent.tools.assembler_tools import (
     assemble_private_cloud_run_postgres_platform,
+    assemble_event_driven_data_pipeline,
+    assemble_gke_platform,
+)
+from terraform_agent.tools.drift_tools import (
+    detect_infrastructure_drift,
+)
+from terraform_agent.tools.policy_tools import (
+    check_policy_compliance,
+)
+from terraform_agent.tools.registry_tools import (
+    list_available_infrastructure_modules,
 )
 from terraform_agent.tools.file_tools import (
     list_generated_files,
@@ -45,6 +56,11 @@ __all__ = [
     "plan_terraform_architecture",
     "design_infrastructure_platform",
     "assemble_private_cloud_run_postgres_platform",
+    "assemble_event_driven_data_pipeline",
+    "assemble_gke_platform",
+    "detect_infrastructure_drift",
+    "check_policy_compliance",
+    "list_available_infrastructure_modules",
     "generate_gcs_terraform_project",
     "generate_cloud_sql_terraform_project",
     "generate_cloud_run_terraform_project",

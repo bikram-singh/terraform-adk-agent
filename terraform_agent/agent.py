@@ -13,8 +13,13 @@ from terraform_agent.services import (
 
 from terraform_agent.tools import (
     assemble_private_cloud_run_postgres_platform,
+    assemble_event_driven_data_pipeline,
+    assemble_gke_platform,
     create_workspace,
     design_infrastructure_platform,
+    detect_infrastructure_drift,
+    check_policy_compliance,
+    list_available_infrastructure_modules,
     generate_bigquery_terraform_project,
     generate_cloud_functions_terraform_project,
     generate_cloud_run_terraform_project,
@@ -44,6 +49,8 @@ settings = get_settings()
 agent_tools = [
     design_infrastructure_platform,
     assemble_private_cloud_run_postgres_platform,
+    assemble_event_driven_data_pipeline,
+    assemble_gke_platform,
     generate_gcs_terraform_project,
     generate_cloud_run_terraform_project,
     generate_cloud_sql_terraform_project,
@@ -66,6 +73,9 @@ agent_tools = [
     terraform_full_validation,
     terraform_plan,
     terraform_apply,
+    detect_infrastructure_drift,
+    check_policy_compliance,
+    list_available_infrastructure_modules,
 ]
 
 if terraform_mcp_enabled():

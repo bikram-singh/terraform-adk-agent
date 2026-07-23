@@ -330,7 +330,7 @@ README_TEMPLATE = """
 Creates a private PostgreSQL or MySQL Cloud SQL instance and one application
 database.
 
-Security defaults:
+## Security defaults
 
 - Public IPv4 disabled
 - Existing VPC and Private Service Access required

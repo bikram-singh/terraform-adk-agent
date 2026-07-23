@@ -93,8 +93,12 @@ def test_iam_scoped_impersonation_bindings() -> None:
         ]
     )
     impersonation_tf = project.files["impersonation.tf"]
+    variables_tf = project.files["variables.tf"]
     assert "google_service_account_iam_member" in impersonation_tf
-    assert "roles/iam.serviceAccountUser" in impersonation_tf
+    assert "role                = var.impersonation_role" in (
+        impersonation_tf
+    )
+    assert 'default     = "roles/iam.serviceAccountUser"' in variables_tf
     assert "service_account_id = google_service_account.this.name" in (
         impersonation_tf
     )

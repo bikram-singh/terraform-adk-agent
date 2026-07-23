@@ -444,7 +444,7 @@ README_TEMPLATE = """
 Creates a private-by-default HTTP-triggered Cloud Function, its own
 dedicated source archive bucket, and a dedicated runtime service account.
 
-Security defaults:
+## Security defaults
 
 - `ingress_settings` defaults to `ALLOW_INTERNAL_ONLY`
 - Public invocation requires explicitly setting `allow_unauthenticated = true`

@@ -9,7 +9,11 @@ from terraform_agent.generators.base import (
     GeneratorContext,
     ServiceMetadata,
 )
-from terraform_agent.generators.base.renderer import render_template
+from terraform_agent.generators.base.renderer import (
+    render_default_assignment,
+    render_hcl_string_list,
+    render_template,
+)
 from terraform_agent.generators.base.validation import (
     normalize_label_value,
     validate_iam_member,
@@ -32,14 +36,6 @@ from terraform_agent.generators.pubsub.templates import (
 _TOPIC_NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{2,254}$")
 _SUBSCRIPTION_NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{2,254}$")
 _DURATION_PATTERN = re.compile(r"^\d+s$")
-
-
-def _render_hcl_list(values: list[str]) -> str:
-    if not values:
-        return "[]"
-
-    lines = ",\n".join(f'    "{value}"' for value in values)
-    return "[\n" + lines + "\n  ]"
 
 
 def _render_hcl_subscriptions(subscriptions: dict[str, dict]) -> str:
@@ -169,10 +165,23 @@ class PubSubGenerator:
             "provider_source": GOOGLE_PROVIDER["source"],
             "provider_version": GOOGLE_PROVIDER["version_constraint"],
             "region": region,
-            "topics": _render_hcl_list(topics),
+            "topics": render_hcl_string_list(topics),
+            "topics_default_line": render_default_assignment(
+                render_hcl_string_list(topics)
+            ),
             "subscriptions": _render_hcl_subscriptions(subscriptions),
-            "publisher_members": _render_hcl_list(publisher_members),
-            "subscriber_members": _render_hcl_list(subscriber_members),
+            "publisher_members": render_hcl_string_list(
+                publisher_members
+            ),
+            "publisher_members_default_line": render_default_assignment(
+                render_hcl_string_list(publisher_members)
+            ),
+            "subscriber_members": render_hcl_string_list(
+                subscriber_members
+            ),
+            "subscriber_members_default_line": render_default_assignment(
+                render_hcl_string_list(subscriber_members)
+            ),
             "environment": environment,
             "owner": owner,
             "application": application,
