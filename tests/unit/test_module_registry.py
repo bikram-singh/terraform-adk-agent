@@ -11,16 +11,17 @@ from terraform_agent.tools.registry_tools import (
 )
 
 
-def test_list_available_modules_reports_all_ten_generators() -> None:
+def test_list_available_modules_reports_all_eleven_generators() -> None:
     result = list_available_modules()
 
     assert result["status"] == "success"
-    assert result["standalone_generator_count"] == 10
+    assert result["standalone_generator_count"] == 11
 
     service_names = {
         entry["service_name"] for entry in result["standalone_generators"]
     }
     assert service_names == {
+        "artifact-registry",
         "bigquery",
         "cloud-functions",
         "cloud-run",
@@ -34,12 +35,22 @@ def test_list_available_modules_reports_all_ten_generators() -> None:
     }
 
 
-def test_list_available_modules_reports_all_generators_live_verified() -> None:
+def test_list_available_modules_reports_correct_live_verified_status() -> None:
     result = list_available_modules()
 
-    assert all(
-        entry["live_verified"] for entry in result["standalone_generators"]
-    )
+    generators_by_name = {
+        entry["service_name"]: entry
+        for entry in result["standalone_generators"]
+    }
+
+    # artifact-registry is new and not yet proven against real GCP
+    # infrastructure -- everything else has been.
+    assert generators_by_name["artifact-registry"]["live_verified"] is False
+
+    for service_name, entry in generators_by_name.items():
+        if service_name == "artifact-registry":
+            continue
+        assert entry["live_verified"] is True
 
 
 def test_list_available_modules_reports_three_composed_architectures() -> None:

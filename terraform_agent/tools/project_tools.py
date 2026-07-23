@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from terraform_agent.intelligence.engine import (
+    generate_intelligent_artifact_registry_project,
     generate_intelligent_bigquery_project,
     generate_intelligent_cloud_functions_project,
     generate_intelligent_cloud_run_project,
@@ -438,3 +439,46 @@ def generate_bigquery_terraform_project(
         kwargs["tables"] = tables
 
     return generate_intelligent_bigquery_project(**kwargs)
+
+def generate_artifact_registry_terraform_project(
+    workspace_name: str,
+    repository_id: str,
+    region: str = "asia-south1",
+    format: str = "DOCKER",
+    description: str = "",
+    reader_members: list[str] | None = None,
+    writer_members: list[str] | None = None,
+    enable_cleanup_policy: bool = True,
+    cleanup_policy_keep_count: int = 10,
+    cleanup_policy_dry_run: bool = True,
+    environment: str = "dev",
+    owner: str = "platform-team",
+    application: str = "terraform-adk-agent",
+) -> dict[str, Any]:
+    """
+    Generate and locally validate an Artifact Registry project.
+
+    Creates one repository (DOCKER, MAVEN, NPM, PYTHON, APT, YUM, or
+    GENERIC) with least-privilege reader/writer IAM bindings, independent
+    of any specific compute service -- useful for Cloud Run, Cloud
+    Functions, or CI/CD pipelines that need a registry without requiring
+    GKE. cleanup_policy_dry_run defaults to true, so enabling
+    enable_cleanup_policy reports what would be deleted without actually
+    deleting anything until dry_run is deliberately turned off.
+    """
+
+    return generate_intelligent_artifact_registry_project(
+        workspace_name=workspace_name,
+        repository_id=repository_id,
+        region=region,
+        format=format,
+        description=description,
+        reader_members=reader_members or [],
+        writer_members=writer_members or [],
+        enable_cleanup_policy=enable_cleanup_policy,
+        cleanup_policy_keep_count=cleanup_policy_keep_count,
+        cleanup_policy_dry_run=cleanup_policy_dry_run,
+        environment=environment,
+        owner=owner,
+        application=application,
+    )

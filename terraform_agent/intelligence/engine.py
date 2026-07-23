@@ -243,3 +243,15 @@ def generate_intelligent_bigquery_project(
         workspace_name,
         kwargs,
     )
+
+def generate_intelligent_artifact_registry_project(
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Generate and validate an Artifact Registry project."""
+
+    workspace_name = kwargs.pop("workspace_name")
+    return generate_service_project(
+        "artifact-registry",
+        workspace_name,
+        kwargs,
+    )

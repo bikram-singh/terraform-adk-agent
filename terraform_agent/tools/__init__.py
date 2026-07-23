@@ -26,6 +26,7 @@ from terraform_agent.tools.file_tools import (
     write_generated_file,
 )
 from terraform_agent.tools.project_tools import (
+    generate_artifact_registry_terraform_project,
     generate_gcs_terraform_project,
     generate_cloud_run_terraform_project,
     generate_cloud_sql_terraform_project,
@@ -61,6 +62,7 @@ __all__ = [
     "detect_infrastructure_drift",
     "check_policy_compliance",
     "list_available_infrastructure_modules",
+    "generate_artifact_registry_terraform_project",
     "generate_gcs_terraform_project",
     "generate_cloud_sql_terraform_project",
     "generate_cloud_run_terraform_project",

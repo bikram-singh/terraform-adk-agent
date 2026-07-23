@@ -1,5 +1,8 @@
 """Registers built-in generator plugins."""
 
+from terraform_agent.generators.artifact_registry import (
+    ArtifactRegistryGenerator,
+)
 from terraform_agent.generators.bigquery import BigQueryGenerator
 from terraform_agent.generators.cloud_functions import CloudFunctionsGenerator
 from terraform_agent.generators.cloudrun import CloudRunGenerator
@@ -47,3 +50,6 @@ def register_builtin_generators() -> None:
 
     if "bigquery" not in registered:
         generator_registry.register(BigQueryGenerator())
+
+    if "artifact-registry" not in registered:
+        generator_registry.register(ArtifactRegistryGenerator())

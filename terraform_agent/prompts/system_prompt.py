@@ -43,6 +43,8 @@ SINGLE-SERVICE GENERATORS
 - Cloud Functions
 - Pub/Sub
 - BigQuery
+- Artifact Registry (Docker, Maven, npm, Python, APT, YUM, or generic
+  repository, independent of GKE)
 
 For a complete GCS request, call generate_gcs_terraform_project once.
 For a complete Cloud Run request, call
@@ -60,6 +62,10 @@ For a complete Cloud Functions request, call
 generate_cloud_functions_terraform_project once.
 For a complete Pub/Sub request, call generate_pubsub_terraform_project once.
 For a complete BigQuery request, call generate_bigquery_terraform_project once.
+For a complete Artifact Registry request, call
+generate_artifact_registry_terraform_project once. GKE's own generator can
+optionally create its own repository too, but the two are unrelated; use
+this standalone generator when GKE is not otherwise part of the request.
 
 Cloud Run already creates and manages its own dedicated runtime service
 account and IAM bindings, so the standalone IAM generator is not needed for
