@@ -4,24 +4,25 @@ _This is the canonical, up-to-date status doc for this project. Update this
 file directly when things change — don't keep a separate copy elsewhere,
 since that's exactly how the previous version of this table went stale._
 
-Last verified: 2026-07-21
+Last verified: 2026-07-23
 
 ## Test Report
 
-| Generator       | Generate | Validate | Plan | Apply | Destroy | Status |
-|-----------------|:--------:|:--------:|:----:|:-----:|:-------:|--------|
-| GCS             | ✅       | ✅       | ✅   | ✅    | ✅      | Completed |
-| Secret Manager  | ✅       | ✅       | ✅   | ✅    | ✅      | Completed |
-| IAM             | ✅       | ✅       | ✅   | ✅    | ✅      | Completed — live confirmed 75s |
-| Pub/Sub         | ✅       | ✅       | ✅   | ✅    | ✅      | Completed — live confirmed 79s |
-| BigQuery        | ✅       | ✅       | ✅   | ✅    | ✅      | Completed — live confirmed 38s |
-| Network (VPC)   | ✅       | ✅       | ✅   | ✅    | ✅      | Completed — live confirmed 533s |
-| Cloud Functions | ✅       | ✅       | ✅   | ✅    | ✅      | Completed — live confirmed 141s (2 real bugs fixed) |
-| Cloud Run       | ✅       | ✅       | ✅   | ✅    | ✅      | Completed — live confirmed 73s |
-| Cloud SQL       | ✅       | ✅       | ✅   | ✅    | ✅      | Completed — live confirmed 618s (1 real bug fixed) |
-| GKE             | ✅       | ✅       | ✅   | ✅    | ✅      | Completed — live confirmed 917s (2 real bugs + 3 environment issues fixed) |
+| Generator          | Generate | Validate | Plan | Apply | Destroy | Status |
+|--------------------|:--------:|:--------:|:----:|:-----:|:-------:|--------|
+| GCS                | ✅       | ✅       | ✅   | ✅    | ✅      | Completed |
+| Secret Manager     | ✅       | ✅       | ✅   | ✅    | ✅      | Completed |
+| IAM                | ✅       | ✅       | ✅   | ✅    | ✅      | Completed — live confirmed 75s |
+| Pub/Sub            | ✅       | ✅       | ✅   | ✅    | ✅      | Completed — live confirmed 79s |
+| BigQuery           | ✅       | ✅       | ✅   | ✅    | ✅      | Completed — live confirmed 38s |
+| Network (VPC)      | ✅       | ✅       | ✅   | ✅    | ✅      | Completed — live confirmed 533s |
+| Cloud Functions    | ✅       | ✅       | ✅   | ✅    | ✅      | Completed — live confirmed 141s (2 real bugs fixed) |
+| Cloud Run          | ✅       | ✅       | ✅   | ✅    | ✅      | Completed — live confirmed 73s |
+| Cloud SQL          | ✅       | ✅       | ✅   | ✅    | ✅      | Completed — live confirmed 618s (1 real bug fixed) |
+| GKE                | ✅       | ✅       | ✅   | ✅    | ✅      | Completed — live confirmed 917s (2 real bugs + 3 environment issues fixed) |
+| Artifact Registry  | ✅       | ✅       | ✅   | ✅    | ✅      | Completed — live confirmed 32.96s |
 
-**All 10 generators: fully complete.** Generate/Validate verified by unit
+**All 11 generators: fully complete.** Generate/Validate verified by unit
 tests; Plan/Apply/Destroy verified by real `terraform` runs against a live
 GCP project (`dhg-vaccine-rateauto-nonpord`), not just static analysis.
 
@@ -50,30 +51,55 @@ generators, not test-environment quirks:
   `db-custom-*` tiers on any account defaulting to `ENTERPRISE_PLUS`.
   Fixed with an explicit, validated `edition` variable (default
   `ENTERPRISE`).
+- **`terraform fmt` alignment bug (systemic, found and fixed this
+  session)**: any list/map-typed variable's `default` line was always
+  rendered with a fixed alignment, but `terraform fmt` aligns `=` signs
+  differently depending on whether the actual value is single-line
+  (`[]`/`{}`) or multi-line (any non-empty list/map) — no static template
+  string can get this right in both cases at once. Root-caused with a
+  shared `render_default_assignment()` helper (computes spacing from the
+  real rendered value) rather than patched per-generator. Affected
+  BigQuery, IAM, Network, Pub/Sub, Secret Manager, and the GKE platform
+  assembler; fixed in all six, verified against real mixed empty/non-empty
+  test cases in each.
+- **NL→Terraform intent detection (real gap, found and fixed this
+  session)**: `design_infrastructure_platform`'s natural-language
+  detector (`detector.py`/`architect.py`) only ever recognized the
+  private Cloud Run + Cloud SQL recipe — a request like "build an
+  event-driven pipeline with Pub/Sub and BigQuery" would have been
+  rejected as unsupported, even though the underlying assembler worked
+  perfectly when called directly. Extended detection, the dependency
+  graph builders, and the assembler dispatch to recognize and correctly
+  route all three composed recipes; verified end-to-end by inspecting
+  the real generated files for all three via natural-language requests.
 
 ## Roadmap — reconciled with what's actually shipped
-
-The original version-numbered roadmap (v0.6 → v2.0, ending at "Terraform
-MCP Server") undersold real progress. Confirmed shipped, per
-`docs/migration/*.md` and this cycle's live-testing work:
 
 ```
 v0.5    Plugin-based Multi-Service Generator Framework      ✅
 v0.6    Cloud Run generator                                 ✅
-v0.7    HashiCorp Terraform MCP Server integration           ✅ (already shipped — not a v2.0 item)
+v0.7    HashiCorp Terraform MCP Server integration (client)  ✅
 v0.7.2  Terraform Registry MCP response sanitization         ✅
 v0.8    GKE generator (Standard + Autopilot, private, WIF)   ✅
 v0.8.1  Plugin-owned generated-file security policy          ✅
 v0.9    Dependency Graph Engine                               ✅
 v0.9.1  Cloud SQL generator                                   ✅
 —       Secret Manager generator                              ✅
+—       Artifact Registry generator (11th standalone generator) ✅
 —       Multi-service architecture assembler                  ✅ (composes Network + Cloud SQL + Secret Manager + Cloud Run)
-—       Full live Apply/Destroy verification, all 10 generators ✅ (this cycle)
+—       Full live Apply/Destroy verification, all 11 generators ✅
+—       NL→Terraform intent detection extended to all 3 composed recipes ✅
+—       Drift Detection (read-only, no auto-remediation)       ✅
+—       Policy as Code (labels, region allowlist, naming)      ✅
+—       Lightweight Module Registry (with live_verified status) ✅
+—       Async Terraform SDK (AsyncTerraformClient, concurrent runs) ✅
+—       Bounded Cost Optimization estimator (provisioned resources only) ✅
+—       Terraform MCP Server (v2.0, scoped down — server, not client) ✅
 ```
 
 ## Composed architectures
 
-Beyond the 10 standalone generators, the assembler composes multiple
+Beyond the 11 standalone generators, the assembler composes multiple
 generators into pre-built architectures:
 
 | Architecture | Generators composed | Status |
@@ -81,6 +107,11 @@ generators into pre-built architectures:
 | Private Cloud Run + Cloud SQL platform | Network, Cloud SQL, Secret Manager, Cloud Run | **Fully live-verified** — real network/PSA/Cloud SQL/Cloud Run all deployed, cross-module wiring confirmed (Cloud Run genuinely reached healthy/serving state), clean teardown. Confirmed 1101.5s (~18m22s). |
 | BigQuery + Pub/Sub + Cloud Functions event pipeline | Pub/Sub, Cloud Functions, BigQuery | **Fully live-verified**, including a real functional test — a real Pub/Sub message was published, genuinely triggered the Cloud Function via Eventarc, and produced a real row in BigQuery. Confirmed 245.6s. |
 | GKE + Network + IAM (Workload Identity) platform | GKE, IAM | **Fully live-verified** — real private GKE cluster, node pool, and a genuinely distinct Workload Identity-bound application service account (confirmed via state, not just resource existence: correct `roles/iam.workloadIdentityUser` binding scoped to the exact Kubernetes ServiceAccount). Confirmed 1216.3s (~20m16s), first try after one setup fix. |
+
+**All three recipes are now also reachable via natural language** through
+`design_infrastructure_platform` — previously only the Cloud Run + Cloud SQL
+recipe was detected from request text; the other two required calling the
+assembler directly. Fixed this session (see "Real bugs found" above).
 
 **Real bugs found and fixed building the GKE platform live test:**
 - `gke_deletion_protection` was entirely missing from the assembler (hardcoded `true`, no override), the same class of gap as Cloud SQL/Cloud Run — fixed properly as a real parameter, not just patched for the test.
@@ -99,48 +130,74 @@ generators into pre-built architectures:
 - The pipeline assembler initially forgot to override `deletion_protection` for the BigQuery table, blocking destroy — fixed by properly exposing it as a root-level variable (defaults `true` for real deployments, overridable for tests).
 - The live test's functional verification originally shelled out to the `gcloud` and `bq` CLIs, both of which are `.cmd` wrappers on Windows that Python's `subprocess.run` can't resolve without `shell=True` — replaced with the native `google-cloud-bigquery` and `google-cloud-pubsub` Python clients, which also sidesteps an unrelated, pre-existing `bq` CLI installation bug on this machine.
 
+## Governance and platform tools (built this session, all wired into the agent)
+
+| Tool | What it does | Real limits, stated plainly |
+|---|---|---|
+| **Drift Detection** (`detect_infrastructure_drift`) | Runs `terraform plan -refresh-only` against a real workspace + real GCP credentials; reports what changed outside Terraform | Read-only by design — detection only, no auto-remediation |
+| **Policy as Code** (`check_policy_compliance`) | Checks a workspace's tfvars for required labels, region allowlist membership, and naming convention | Three checks only, fully offline — not a full OPA/Sentinel-style engine |
+| **Module Registry** (`list_available_infrastructure_modules`) | Structured inventory of all 11 generators + 3 composed architectures, each with a real `live_verified` field | `live_verified` reflects actual testing history, tracked explicitly — not inferred from code |
+| **Async Terraform SDK** (`terraform_agent/sdk/AsyncTerraformClient`) | Purely additive async client; `run_many()`/`validate_many()` run Terraform commands concurrently across multiple workspaces | Does not replace the existing synchronous tools anywhere — zero regression risk by construction |
+| **Cost Optimization** (`estimate_workspace_cost`) | Rough monthly cost estimate for provisioned (always-on) resources — Cloud SQL, GKE node pools + control-plane fee | Uses a static table of published GCP list prices (us-central1, verified 2026-07-23), not the real Billing API. Explicitly does **not** estimate usage-based services (Cloud Run, Cloud Functions, Pub/Sub, BigQuery, GCS, Artifact Registry) |
+| **Terraform MCP Server** (`terraform_agent/mcp_server/`, `run_mcp_server.py`) | Exposes 21 tools over the Model Context Protocol so any MCP client (Claude Desktop, Claude Code) can use them directly | Deliberately excludes `terraform_apply`/`terraform_plan` against real state and any state read/write — real deployment stays in the more supervised ADK chat-loop path. **Live-verified working end-to-end via Claude Code**, not just unit tested |
+
 ## What's next
 
-**All three composed architectures are now fully live-verified**, on top
-of all 10 standalone generators. There is no longer an "immediate next
-step" queued up — the trimmed roadmap items below are independent of
-each other and of roughly equal priority; pick whichever is useful:
+There is no queued "immediate next step." Every item previously listed as
+"kept, scoped down to realistic solo-project size" is now done:
 
-The original v2.0-v4.0 vision included several items scoped for a
-multi-year commercial platform team, not a solo project. Cut those
-entirely rather than let them go stale on paper again. What's left is
-realistic, buildable incrementally, and mostly extends things that
-already exist.
+```
+[x] Terraform Agent SDK        — done (AsyncTerraformClient)
+[x] Documentation Generator    — checked; found already solid across all
+                                  11 generators, minor header consistency
+                                  fix applied rather than a bigger rebuild
+[x] Lightweight Policy as Code — done
+[x] Drift Detection (detection only) — done
+[x] Lightweight Module Registry — done
+[x] Check whether NL → Terraform is already covered — checked; found a
+                                  real gap (only 1 of 3 recipes was
+                                  detected), fixed properly
+```
 
-**Cut entirely** (kept out of scope on purpose — revisit only if the
-project's scale genuinely changes):
+Two items originally marked "cut entirely" as too large for a solo
+project were revisited, scoped down further than the original ask, and
+built anyway:
+
+```
+[x] v2.0 Terraform MCP Server — scoped to generation/validation/
+                                 governance tools only, no deployment
+                                 actions exposed; live-verified via
+                                 Claude Code
+[x] v2.6 Cost Optimization     — scoped to provisioned, always-on
+                                 resources only, static pricing table
+                                 instead of live Billing API, honest
+                                 about what it can't estimate
+```
+
+Genuinely still out of scope on purpose (revisit only if the project's
+scale changes substantially):
 - Phase 3 (Multi-Agent System, RAG Knowledge Base, Self-Healing
   Infrastructure, Platform Dashboard)
 - Phase 4 (Complete Enterprise IaC Platform)
-- v2.0 Enterprise MCP Server as a second, bigger MCP layer (basic
-  Terraform MCP integration already shipped at v0.7)
-- v2.6 Cost Optimization Engine (full Billing API + forecasting scope)
-- Auto-remediation half of drift detection (detection is kept, see below)
+- Auto-remediation half of drift detection (detection is kept; automated
+  fixing is a materially bigger safety/governance undertaking)
+- Full Billing API integration, rightsizing, and FinOps forecasting for
+  cost estimation
 
-**Kept, scoped down to realistic solo-project size, roughly in order:**
-```
-[ ] Terraform Agent SDK       — refactor existing CLI-wrapping code
-                                 (terraform_runner.py, tools/) into a
-                                 clean, reusable async SDK layer
-[ ] Documentation Generator   — extend the README-per-module pattern
-                                 several generators already have,
-                                 consistently across all 10
-[ ] Lightweight Policy as Code — simple Python checks (required labels,
-                                 naming, region allowlist) run before
-                                 generate/apply; not a full OPA-style engine
-[ ] Drift Detection (detection only) — compare live state vs. real GCP,
-                                 report differences; no auto-remediation
-[ ] Lightweight Module Registry — static manifest of the 10 modules with
-                                 metadata; no separate search/dependency-
-                                 graph systems
-[ ] Check whether the AI Assistant idea (NL → Terraform) is already
-    covered by the existing ADK agent before building anything new
-```
+If you want a next step anyway, the two most natural extensions of
+things that already exist are: adding a fourth composed architecture, or
+broadening the cost estimator's static pricing table to more machine
+types and services.
 
-Nothing here is version-numbered on purpose — these are independent,
-pick-what-you-need items now, not a strict sequence.
+## Housekeeping
+
+Confirmed done this session:
+- `terraform_agent/tools/system_prompt.py` (an abandoned early draft of
+  the system prompt, never imported by anything — the real one lives at
+  `terraform_agent/prompts/system_prompt.py`) — removed
+- `pubsub-e2e-input.txt` (a one-off manual test input, unreferenced) —
+  removed
+- `requirements.txt`'s `pytestmcp` line (two concatenated package names,
+  `pytest` + `mcp`, that had never resolved to a real package) — fixed
+- The four `test/*-e2e-automation` branches, all fully merged into
+  `main` — deleted, both locally and on `origin`
