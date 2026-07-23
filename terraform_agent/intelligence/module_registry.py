@@ -25,6 +25,7 @@ from terraform_agent.intelligence.registry import list_generator_metadata
 # here until it actually is.
 _LIVE_VERIFIED_GENERATORS: frozenset[str] = frozenset(
     {
+        "artifact-registry",
         "bigquery",
         "cloud-functions",
         "cloud-run",

@@ -35,22 +35,12 @@ def test_list_available_modules_reports_all_eleven_generators() -> None:
     }
 
 
-def test_list_available_modules_reports_correct_live_verified_status() -> None:
+def test_list_available_modules_reports_all_generators_live_verified() -> None:
     result = list_available_modules()
 
-    generators_by_name = {
-        entry["service_name"]: entry
-        for entry in result["standalone_generators"]
-    }
-
-    # artifact-registry is new and not yet proven against real GCP
-    # infrastructure -- everything else has been.
-    assert generators_by_name["artifact-registry"]["live_verified"] is False
-
-    for service_name, entry in generators_by_name.items():
-        if service_name == "artifact-registry":
-            continue
-        assert entry["live_verified"] is True
+    assert all(
+        entry["live_verified"] for entry in result["standalone_generators"]
+    )
 
 
 def test_list_available_modules_reports_three_composed_architectures() -> None:
