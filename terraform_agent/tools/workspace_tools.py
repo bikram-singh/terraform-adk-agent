@@ -89,14 +89,17 @@ def create_workspace(
 
     workspace = get_workspace_path(name)
 
-    if workspace.exists():
+    if workspace.exists() and any(workspace.iterdir()):
         return {
             "status": "error",
             "workspace_name": name,
-            "message": "Workspace already exists. A previous request was not overwritten.",
+            "message": (
+                "Workspace already exists and contains files. A "
+                "previous request was not overwritten."
+            ),
         }
 
-    workspace.mkdir(parents=True, exist_ok=False)
+    workspace.mkdir(parents=True, exist_ok=True)
 
     return {
         "status": "success",
