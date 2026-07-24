@@ -14,16 +14,21 @@ from terraform_agent.tools.workspace_tools import get_workspace_path
 def _run_terraform_command(
     workspace_name: str,
     arguments: list[str],
+    timeout_seconds: int | None = None,
 ) -> dict[str, Any]:
     """
     Execute a predefined Terraform command inside an approved workspace.
 
     This function is private so the ADK agent cannot supply arbitrary
-    commands or shell syntax.
+    commands or shell syntax. timeout_seconds overrides the configured
+    default for this single call -- useful for operations on resources
+    known to take much longer than average (for example GKE clusters,
+    which have taken upward of 15 minutes in real live testing).
     """
 
     settings = get_settings()
     workspace = get_workspace_path(workspace_name)
+    effective_timeout = timeout_seconds or settings.terraform_command_timeout
 
     if not workspace.exists() or not workspace.is_dir():
         return {
@@ -43,7 +48,7 @@ def _run_terraform_command(
             text=True,
             encoding="utf-8",
             errors="replace",
-            timeout=settings.terraform_command_timeout,
+            timeout=effective_timeout,
             check=False,
             shell=False,
         )
@@ -62,7 +67,9 @@ def _run_terraform_command(
             "command": command,
             "message": (
                 "Terraform command exceeded the configured timeout of "
-                f"{settings.terraform_command_timeout} seconds."
+                f"{effective_timeout} seconds. If this operation involves "
+                "a resource known to take a long time (GKE, Cloud SQL), "
+                "retry with a larger timeout_seconds value."
             ),
             "stdout": exc.stdout or "",
             "stderr": exc.stderr or "",
@@ -178,6 +185,7 @@ def terraform_plan(
     workspace_name: str,
     var_file: str = "terraform.tfvars",
     destroy: bool = False,
+    timeout_seconds: int | None = None,
 ) -> dict[str, Any]:
     """
     Create a real Terraform execution plan for human review.
@@ -197,6 +205,10 @@ def terraform_plan(
     plan_file. Never call terraform_apply automatically after this in
     the same turn; always show the plan output and wait for explicit
     user confirmation first.
+
+    timeout_seconds overrides the configured default (1800s) for both
+    the init and plan steps in this call, if planning against a large
+    or slow-to-refresh architecture needs more time than usual.
     """
 
     settings = get_settings()
@@ -254,6 +266,7 @@ def terraform_plan(
     init_result = _run_terraform_command(
         workspace_name,
         ["init", "-input=false", "-no-color"],
+        timeout_seconds=timeout_seconds,
     )
 
     if init_result["status"] != "success":
@@ -271,7 +284,9 @@ def terraform_plan(
         plan_arguments.append("-destroy")
     plan_arguments.extend([f"-var-file={var_file}", f"-out={plan_file}"])
 
-    plan_result = _run_terraform_command(workspace_name, plan_arguments)
+    plan_result = _run_terraform_command(
+        workspace_name, plan_arguments, timeout_seconds=timeout_seconds
+    )
 
     return {
         "status": plan_result["status"],
@@ -293,6 +308,7 @@ def terraform_apply(
     workspace_name: str,
     plan_file: str = "tfplan",
     destroy: bool = False,
+    timeout_seconds: int | None = None,
 ) -> dict[str, Any]:
     """
     Apply a previously created and human-reviewed Terraform plan file.
@@ -307,6 +323,12 @@ def terraform_apply(
     Requires TERRAFORM_ALLOW_APPLY=true in the environment (or
     TERRAFORM_ALLOW_DESTROY=true when destroy=True matches a destroy
     plan) and an existing plan_file produced by terraform_plan.
+
+    timeout_seconds overrides the configured default (1800s) for this
+    call. Pass a larger value (for example 2400-3600) when the plan
+    includes a GKE cluster, a new Cloud SQL instance, or any other
+    resource documented as slow in this project's real live-testing
+    history -- these have taken 10-15+ minutes to actually complete.
     """
 
     settings = get_settings()
@@ -363,6 +385,7 @@ def terraform_apply(
     apply_result = _run_terraform_command(
         workspace_name,
         ["apply", "-input=false", "-no-color", plan_file],
+        timeout_seconds=timeout_seconds,
     )
 
     return {

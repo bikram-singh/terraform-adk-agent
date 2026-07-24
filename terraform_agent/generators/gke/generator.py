@@ -69,6 +69,9 @@ class GKEGenerator:
         node_min_count = int(values.get("node_min_count", 1))
         node_max_count = int(values.get("node_max_count", 3))
         node_disk_size_gb = int(values.get("node_disk_size_gb", 100))
+        node_disk_type = str(
+            values.get("node_disk_type", "pd-standard")
+        ).strip()
 
         if node_min_count < 0:
             raise ValueError("node_min_count must be zero or greater.")
@@ -81,6 +84,11 @@ class GKEGenerator:
             )
         if node_disk_size_gb < 20:
             raise ValueError("node_disk_size_gb must be at least 20.")
+        if node_disk_type not in ("pd-standard", "pd-balanced", "pd-ssd"):
+            raise ValueError(
+                "node_disk_type must be one of: pd-standard, "
+                "pd-balanced, pd-ssd."
+            )
 
         template_values = {
             "terraform_version": GOOGLE_PROVIDER[
@@ -113,6 +121,7 @@ class GKEGenerator:
                 values.get("node_machine_type", "e2-standard-4")
             ),
             "node_disk_size_gb": str(node_disk_size_gb),
+            "node_disk_type": node_disk_type,
             "node_min_count": str(node_min_count),
             "node_max_count": str(node_max_count),
             "artifact_registry_repository_id": str(

@@ -47,9 +47,9 @@ class Settings(BaseSettings):
         alias="TERRAFORM_OUTPUT_ROOT",
     )
     terraform_command_timeout: int = Field(
-        default=180,
+        default=1800,
         ge=10,
-        le=900,
+        le=3600,
         alias="TERRAFORM_COMMAND_TIMEOUT",
     )
 

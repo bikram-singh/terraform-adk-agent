@@ -76,7 +76,7 @@ variable "master_ipv4_cidr_block" {
 }
 
 variable "master_authorized_networks" {
-  description = "CIDR blocks allowed to reach the cluster's control plane. Required by the GKE API whenever enable_private_endpoint is true."
+  description = "CIDR blocks allowed to reach the cluster's control plane. Required by the GKE API whenever enable_private_endpoint is true -- without at least one entry, the private-only endpoint would be completely unreachable and cluster creation is rejected. CIDRs must be from reserved/private IP space when the private endpoint is enabled. The default (10.0.0.0/8) covers typical internal VPC ranges; narrow this to your actual management network for production use."
   type = list(object({
     cidr_block   = string
     display_name = string
@@ -129,6 +129,17 @@ variable "node_disk_size_gb" {
   description = "Standard node boot-disk size."
   type        = number
   default     = $node_disk_size_gb
+}
+
+variable "node_disk_type" {
+  description = "Standard node boot-disk type. pd-standard (default) draws on a separate, typically much larger regional quota than pd-balanced/pd-ssd, which share the SSD_TOTAL_GB quota -- a real, documented capacity constraint hit during this project's own live testing. Use pd-balanced or pd-ssd only if the target project has confirmed headroom in that quota."
+  type        = string
+  default     = "$node_disk_type"
+
+  validation {
+    condition     = contains(["pd-standard", "pd-balanced", "pd-ssd"], var.node_disk_type)
+    error_message = "node_disk_type must be one of: pd-standard, pd-balanced, pd-ssd."
+  }
 }
 
 variable "node_min_count" {
@@ -367,7 +378,7 @@ resource "google_container_node_pool" "primary" {
   node_config {
     machine_type    = var.node_machine_type
     disk_size_gb    = var.node_disk_size_gb
-    disk_type       = "pd-balanced"
+    disk_type       = var.node_disk_type
     spot            = var.node_spot
     service_account = google_service_account.nodes.email
     oauth_scopes    = ["https://www.googleapis.com/auth/cloud-platform"]
@@ -477,6 +488,12 @@ services_secondary_range_name = "gke-services"
 master_ipv4_cidr_block  = "$master_ipv4_cidr_block"
 enable_private_endpoint = $enable_private_endpoint
 
+# master_authorized_networks defaults to allowing all of 10.0.0.0/8.
+# Narrow this to your actual management network for production use:
+# master_authorized_networks = [
+#   { cidr_block = "10.10.0.0/20", display_name = "bastion-subnet" }
+# ]
+
 release_channel             = "$release_channel"
 gateway_api_channel         = "$gateway_api_channel"
 enable_binary_authorization = $enable_binary_authorization
@@ -484,6 +501,7 @@ deletion_protection         = $deletion_protection
 
 node_machine_type = "$node_machine_type"
 node_disk_size_gb = $node_disk_size_gb
+node_disk_type    = "$node_disk_type"
 node_min_count    = $node_min_count
 node_max_count    = $node_max_count
 node_spot         = false

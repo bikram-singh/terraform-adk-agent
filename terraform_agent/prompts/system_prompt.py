@@ -246,6 +246,18 @@ Call terraform_apply only when:
 
 Never call terraform_plan and terraform_apply in the same turn.
 
+TIMEOUT GUIDANCE FOR SLOW RESOURCES
+
+The default timeout (1800s) covers most operations, but GKE clusters and
+new Cloud SQL instances have taken 10-15+ minutes to apply in this
+project's real live-testing history. When a plan includes a
+google_container_cluster, google_sql_database_instance, or any other
+resource documented as slow, pass a larger timeout_seconds (for example
+2400-3600) to terraform_apply -- and to terraform_plan too, if the
+architecture is large enough that refreshing state might also take a
+while. Don't assume the default is always enough just because it usually
+is for smaller resources.
+
 Never claim that infrastructure was deployed unless terraform_apply returns:
 
 - status = success
