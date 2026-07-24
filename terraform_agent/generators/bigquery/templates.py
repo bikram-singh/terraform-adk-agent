@@ -114,13 +114,13 @@ locals {
 }
 
 resource "google_bigquery_dataset" "this" {
-  project                    = var.project_id
-  dataset_id                 = var.dataset_id
+  project                     = var.project_id
+  dataset_id                  = var.dataset_id
   friendly_name               = var.dataset_id
   location                    = var.location
   default_table_expiration_ms = var.default_table_expiration_ms
   delete_contents_on_destroy  = false
-  labels                       = local.common_labels
+  labels                      = local.common_labels
 
   dynamic "default_encryption_configuration" {
     for_each = var.kms_key_name != null ? [var.kms_key_name] : []
@@ -214,7 +214,7 @@ README_TEMPLATE = """
 Creates one BigQuery dataset and one or more tables with least-privilege
 IAM bindings.
 
-Security defaults:
+## Security defaults
 
 - `deletion_protection = true` on every table by default
 - Dataset access is granted per-member through
