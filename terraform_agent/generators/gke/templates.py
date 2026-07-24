@@ -220,6 +220,20 @@ resource "google_container_cluster" "standard" {
   initial_node_count       = 1
   networking_mode          = "VPC_NATIVE"
 
+  # Even with remove_default_node_pool = true, GKE still briefly
+  # creates a transient initial node pool using this cluster-level
+  # node_config before Terraform deletes it and creates the real
+  # "primary" node pool separately below. Without this block, that
+  # transient pool falls back to GKE's raw API default (pd-balanced),
+  # which can hit the same SSD_TOTAL_GB quota wall the real node pool
+  # is deliberately configured to avoid -- confirmed by hitting exactly
+  # this during real live testing.
+  node_config {
+    machine_type = var.node_machine_type
+    disk_size_gb = var.node_disk_size_gb
+    disk_type    = var.node_disk_type
+  }
+
   ip_allocation_policy {
     cluster_secondary_range_name  = var.pods_secondary_range_name
     services_secondary_range_name = var.services_secondary_range_name
