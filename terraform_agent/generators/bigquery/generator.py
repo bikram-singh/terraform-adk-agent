@@ -1,4 +1,4 @@
-"""BigQuery implementation of the generator contract."""
+﻿"""BigQuery implementation of the generator contract."""
 
 from __future__ import annotations
 
@@ -10,7 +10,11 @@ from terraform_agent.generators.base import (
     GeneratorContext,
     ServiceMetadata,
 )
-from terraform_agent.generators.base.renderer import render_template
+from terraform_agent.generators.base.renderer import (
+    render_default_assignment,
+    render_hcl_string_list,
+    render_template,
+)
 from terraform_agent.generators.base.validation import (
     normalize_label_value,
     require_non_empty,
@@ -33,14 +37,6 @@ from terraform_agent.generators.providers import GOOGLE_PROVIDER
 
 _DATASET_ID_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,1023}$")
 _TABLE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_]{1,1024}$")
-
-
-def _render_hcl_list(values: list[str]) -> str:
-    if not values:
-        return "[]"
-
-    lines = ",\n".join(f'    "{value}"' for value in values)
-    return "[\n" + lines + "\n  ]"
 
 
 def _render_hcl_tables(tables: dict[str, dict]) -> str:
@@ -211,8 +207,14 @@ class BigQueryGenerator:
             ),
             "deletion_protection": str(deletion_protection).lower(),
             "tables": _render_hcl_tables(tables),
-            "reader_members": _render_hcl_list(reader_members),
-            "editor_members": _render_hcl_list(editor_members),
+            "reader_members": render_hcl_string_list(reader_members),
+            "reader_members_default_line": render_default_assignment(
+                render_hcl_string_list(reader_members)
+            ),
+            "editor_members": render_hcl_string_list(editor_members),
+            "editor_members_default_line": render_default_assignment(
+                render_hcl_string_list(editor_members)
+            ),
             "environment": environment,
             "owner": owner,
             "application": application,
